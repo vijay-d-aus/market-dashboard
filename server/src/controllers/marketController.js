@@ -3,8 +3,14 @@ const marketService = require("../services/marketService");
 const getSymbols = async (req, res) => {
   try {
     const data = await marketService.fetchSymbols();
-    res.json(data);
+
+    res.status(200).json({
+      success: true,
+      data: data.data
+    });
   } catch (error) {
+    console.log("Symbols error:", error.response?.data || error.message);
+
     res.status(500).json({
       success: false,
       message: "Failed to fetch symbols"
@@ -23,53 +29,33 @@ const getIntradayData = async (req, res) => {
       });
     }
 
-    const data = await marketService.fetchIntradayData({
-      symbol,
-      limit,
-      offset
-    });
-
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch intraday data"
-    });
-  }
-};
-
-const getHistoricalData = async (req, res) => {
-  try {
-    const {
-      symbol,
-      start_date,
-      end_date,
-      limit = 100,
-      offset = 0
-    } = req.body;
-
-    if (!symbol || !start_date || !end_date) {
+    if (limit > 5000) {
       return res.status(400).json({
         success: false,
-        message: "symbol, start_date and end_date are required"
+        message: "Limit cannot be more than 5000"
       });
     }
 
-    const data = await marketService.fetchHistoricalData({
-      symbol,
-      start_date,
-      end_date,
+    if (offset < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Offset cannot be negative"
+      });
+    }
+
+    const data = await marketService.fetchIntradayData({
+      symbol: symbol.toUpperCase(),
       limit,
       offset
     });
 
-    res.json(data);
+    res.status(200).json(data);
   } catch (error) {
-    console.log("Historical API error:", error.response?.data || error.message);
+    console.log("Intraday error:", error.response?.data || error.message);
 
-    res.status(500).json({
+    res.status(error.response?.status || 500).json({
       success: false,
-      message: "Failed to fetch historical data",
+      message: "Failed to fetch intraday data",
       error: error.response?.data || error.message
     });
   }
@@ -77,6 +63,5 @@ const getHistoricalData = async (req, res) => {
 
 module.exports = {
   getSymbols,
-  getIntradayData,
-  getHistoricalData
+  getIntradayData
 };
