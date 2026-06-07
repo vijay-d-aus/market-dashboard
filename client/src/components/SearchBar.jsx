@@ -1,11 +1,18 @@
-function SearchBar({ symbols, onAddSymbol }) {
+function SearchBar({ errorMessage, symbols, status, onAddSymbol }) {
+  const isLoading = status === "loading";
+  const hasError = status === "error";
+
   return (
-    <div>
+    <div className="search-panel">
       <h2>Search Symbols</h2>
 
-      <select onChange={(e) => onAddSymbol(e.target.value)} defaultValue="">
+      <select
+        disabled={isLoading || hasError}
+        onChange={(e) => onAddSymbol(e.target.value)}
+        defaultValue=""
+      >
         <option value="" disabled>
-          Select a symbol
+          {isLoading ? "Loading symbols..." : "Select a symbol"}
         </option>
 
         {symbols.map((stock) => (
@@ -14,6 +21,8 @@ function SearchBar({ symbols, onAddSymbol }) {
           </option>
         ))}
       </select>
+
+      {hasError && <p className="state-message is-error">{errorMessage}</p>}
     </div>
   );
 }

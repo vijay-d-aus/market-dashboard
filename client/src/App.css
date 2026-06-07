@@ -182,3 +182,381 @@
     border-right-color: var(--border);
   }
 }
+
+.dashboard {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 32px;
+  text-align: left;
+}
+
+.dashboard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 30px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard h1 {
+  margin-top: 0;
+  margin-bottom: 6px;
+}
+
+.dashboard__subtitle {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.connection-pill {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--surface-muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.connection-pill span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.connection-pill.is-connected {
+  color: var(--success);
+  background: var(--success-bg);
+  border-color: rgba(5, 150, 105, 0.26);
+}
+
+.connection-pill.is-connected span {
+  background: var(--success);
+}
+
+.search-panel {
+  margin-bottom: 28px;
+}
+
+.search-panel select {
+  width: min(420px, 100%);
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-h);
+  background: var(--surface);
+  font: inherit;
+}
+
+.search-panel select:disabled {
+  cursor: not-allowed;
+  color: var(--text);
+  background: var(--surface-muted);
+}
+
+.search-panel select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.watchlist h2 {
+  margin-bottom: 14px;
+}
+
+.watchlist__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.watchlist__item {
+  width: 100%;
+  min-height: 204px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: inherit;
+  background: var(--surface-muted);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.watchlist__item:hover,
+.watchlist__item:focus-visible {
+  border-color: var(--accent-border);
+  outline: none;
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.watchlist-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.watchlist-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.watchlist-card h3 {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 18px;
+}
+
+.watchlist-card__change {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.watchlist-card__change.is-positive {
+  color: var(--success);
+  background: var(--success-bg);
+}
+
+.watchlist-card__change.is-negative {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.watchlist-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.watchlist-card__price {
+  color: var(--text-h);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.watchlist-card dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.watchlist-card dt {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.watchlist-card dd {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+.watchlist-card__time {
+  margin-top: auto;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.empty-state,
+.state-message {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 18px;
+  color: var(--text);
+  background: var(--surface-muted);
+}
+
+.empty-state h3 {
+  margin: 0 0 4px;
+  color: var(--text-h);
+  font-size: 18px;
+}
+
+.state-message {
+  display: inline-flex;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.state-message.is-error {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-color: rgba(220, 38, 38, 0.25);
+}
+
+.stock-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stock-detail__back {
+  align-self: flex-start;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-h);
+  background: var(--surface-muted);
+  cursor: pointer;
+}
+
+.stock-detail__back:hover,
+.stock-detail__back:focus-visible {
+  border-color: var(--accent-border);
+  outline: none;
+}
+
+.stock-detail__summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: end;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.stock-detail__label {
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.stock-detail__price {
+  font-size: 32px;
+  line-height: 1;
+  color: var(--text-h);
+}
+
+.stock-detail__toggle {
+  display: inline-flex;
+  align-self: flex-start;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.stock-detail__toggle button {
+  padding: 8px 14px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.stock-detail__toggle button:last-child {
+  border-right: 0;
+}
+
+.stock-detail__toggle button.is-active {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.stock-detail__toggle button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.stock-chart {
+  position: relative;
+  min-height: 340px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.stock-chart__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.stock-chart__header h2 {
+  margin-bottom: 0;
+}
+
+.stock-chart__legend {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.stock-chart__legend span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.stock-chart__legend-line {
+  display: inline-block;
+  width: 22px;
+  border-top: 3px solid;
+}
+
+.stock-chart__legend-line--price {
+  border-color: #2563eb;
+}
+
+.stock-chart__legend-line--average {
+  border-color: #f97316;
+  border-top-style: dashed;
+}
+
+.stock-chart__empty {
+  position: absolute;
+  inset: 160px 18px auto;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .dashboard {
+    padding: 20px;
+  }
+
+  .dashboard__header {
+    display: block;
+  }
+
+  .connection-pill {
+    margin-top: 14px;
+  }
+
+  .stock-detail__summary {
+    display: block;
+  }
+
+  .stock-detail__price {
+    margin-top: 8px;
+  }
+
+  .stock-chart__header {
+    display: block;
+  }
+
+  .stock-chart__legend {
+    margin-top: 8px;
+  }
+}

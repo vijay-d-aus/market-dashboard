@@ -1,15 +1,22 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
+  --text: #586170;
+  --text-h: #111827;
+  --bg: #f6f8fb;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --border: #d9e0ea;
+  --code-bg: #eef2f7;
+  --accent: #2563eb;
+  --accent-bg: rgba(37, 99, 235, 0.1);
+  --accent-border: rgba(37, 99, 235, 0.35);
+  --success: #059669;
+  --success-bg: rgba(5, 150, 105, 0.12);
+  --danger: #dc2626;
+  --danger-bg: rgba(220, 38, 38, 0.1);
+  --warning: #f97316;
+  --social-bg: rgba(241, 245, 249, 0.8);
   --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+    rgba(15, 23, 42, 0.08) 0 12px 30px -12px, rgba(15, 23, 42, 0.05) 0 4px 12px -4px;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -32,17 +39,24 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
+    --text: #a6b0c0;
+    --text-h: #f8fafc;
+    --bg: #0f172a;
+    --surface: #111c31;
+    --surface-muted: #18243a;
+    --border: #2a3954;
+    --code-bg: #1e293b;
+    --accent: #60a5fa;
+    --accent-bg: rgba(96, 165, 250, 0.16);
+    --accent-border: rgba(96, 165, 250, 0.45);
+    --success: #34d399;
+    --success-bg: rgba(52, 211, 153, 0.14);
+    --danger: #f87171;
+    --danger-bg: rgba(248, 113, 113, 0.14);
+    --warning: #fb923c;
+    --social-bg: rgba(30, 41, 59, 0.74);
     --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+      rgba(0, 0, 0, 0.45) 0 16px 36px -18px, rgba(0, 0, 0, 0.32) 0 8px 18px -10px;
   }
 
   #social .button-icon {
@@ -52,6 +66,7 @@
 
 body {
   margin: 0;
+  background: var(--bg);
 }
 
 #root {
@@ -64,6 +79,7 @@ body {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  background: var(--surface);
 }
 
 h1,
@@ -74,18 +90,19 @@ h2 {
 }
 
 h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
+  font-size: 42px;
+  letter-spacing: 0;
+  line-height: 1.08;
   margin: 32px 0;
   @media (max-width: 1024px) {
-    font-size: 36px;
+    font-size: 32px;
     margin: 20px 0;
   }
 }
 h2 {
   font-size: 24px;
   line-height: 118%;
-  letter-spacing: -0.24px;
+  letter-spacing: 0;
   margin: 0 0 8px;
   @media (max-width: 1024px) {
     font-size: 20px;

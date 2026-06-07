@@ -1,22 +1,51 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import api from "../services/api";
 import socket from "../services/socket";
 import SearchBar from "../components/SearchBar";
 import Watchlist from "../components/Watchlist";
+import StockDetail from "../components/StockDetail";
+
+const toChartPoint = (tick) => ({
+  time: tick.TS ? tick.TS.slice(11, 19) : new Date().toLocaleTimeString(),
+  price: Number(tick.CLOSE)
+});
+
+const getStoredWatchlist = () => {
+  try {
+    const storedWatchlist = localStorage.getItem("watchlist");
+    const parsedWatchlist = storedWatchlist ? JSON.parse(storedWatchlist) : [];
+
+    return Array.isArray(parsedWatchlist) ? parsedWatchlist : [];
+  } catch {
+    return [];
+  }
+};
 
 function Dashboard() {
   const [symbols, setSymbols] = useState([]);
-  const [watchlist, setWatchlist] = useState([]);
+  const [symbolsStatus, setSymbolsStatus] = useState("loading");
+  const [symbolsError, setSymbolsError] = useState("");
+  const [watchlist, setWatchlist] = useState(getStoredWatchlist);
   const [liveData, setLiveData] = useState({});
   const [connectionStatus, setConnectionStatus] = useState("Disconnected");
+  const [selectedSymbol, setSelectedSymbol] = useState(null);
+  const [chartData, setChartData] = useState([]);
+  const selectedSymbolRef = useRef(null);
+  const watchlistRef = useRef(watchlist);
 
   useEffect(() => {
     const fetchSymbols = async () => {
+      setSymbolsStatus("loading");
+      setSymbolsError("");
+
       try {
         const response = await api.get("/symbols");
         setSymbols(response.data.data);
+        setSymbolsStatus("success");
       } catch (error) {
         console.log("Failed to fetch symbols", error);
+        setSymbolsStatus("error");
+        setSymbolsError("Could not load symbols. Check the backend server.");
       }
     };
 
@@ -28,6 +57,10 @@ function Dashboard() {
 
     socket.on("connect", () => {
       setConnectionStatus("Connected");
+
+      if (watchlistRef.current.length > 0) {
+        socket.emit("subscribe", watchlistRef.current);
+      }
     });
 
     socket.on("disconnect", () => {
@@ -39,6 +72,19 @@ function Dashboard() {
         ...prev,
         [tick.SYMBOL]: tick
       }));
+
+      setChartData((prev) => {
+        if (!selectedSymbolRef.current || tick.SYMBOL !== selectedSymbolRef.current) {
+          return prev;
+        }
+
+        const updated = [
+          ...prev,
+          toChartPoint(tick)
+        ];
+
+        return updated.slice(-50);
+      });
     });
 
     return () => {
@@ -49,27 +95,81 @@ function Dashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    watchlistRef.current = watchlist;
+    localStorage.setItem("watchlist", JSON.stringify(watchlist));
+
+    if (socket.connected && watchlist.length > 0) {
+      socket.emit("subscribe", watchlist);
+    }
+  }, [watchlist]);
+
   const handleAddSymbol = (symbol) => {
     if (!symbol) return;
 
     if (!watchlist.includes(symbol)) {
       const updatedWatchlist = [...watchlist, symbol];
       setWatchlist(updatedWatchlist);
-
-      socket.emit("subscribe", updatedWatchlist);
     }
   };
 
+  const handleSelectSymbol = (symbol) => {
+    selectedSymbolRef.current = symbol;
+    setSelectedSymbol(symbol);
+    setChartData(liveData[symbol] ? [toChartPoint(liveData[symbol])] : []);
+  };
+
+  const handleBackToWatchlist = () => {
+    selectedSymbolRef.current = null;
+    setSelectedSymbol(null);
+    setChartData([]);
+  };
+
+  const selectedTick = selectedSymbol ? liveData[selectedSymbol] : null;
+
   return (
-    <div>
-      <h1>Real-Time Market Dashboard</h1>
+    <main className="dashboard">
+      <header className="dashboard__header">
+        <div>
+          <h1>Real-Time Market Dashboard</h1>
+          <p className="dashboard__subtitle">Live NSE watchlist and charts</p>
+        </div>
 
-      <p>Socket Status: {connectionStatus}</p>
+        <div
+          className={`connection-pill ${
+            connectionStatus === "Connected" ? "is-connected" : ""
+          }`}
+        >
+          <span />
+          {connectionStatus}
+        </div>
+      </header>
 
-      <SearchBar symbols={symbols} onAddSymbol={handleAddSymbol} />
+      {selectedSymbol ? (
+        <StockDetail
+          key={selectedSymbol}
+          symbol={selectedSymbol}
+          tick={selectedTick}
+          chartData={chartData}
+          onBack={handleBackToWatchlist}
+        />
+      ) : (
+        <>
+          <SearchBar
+            symbols={symbols}
+            status={symbolsStatus}
+            errorMessage={symbolsError}
+            onAddSymbol={handleAddSymbol}
+          />
 
-      <Watchlist watchlist={watchlist} liveData={liveData} />
-    </div>
+          <Watchlist
+            watchlist={watchlist}
+            liveData={liveData}
+            onSelectSymbol={handleSelectSymbol}
+          />
+        </>
+      )}
+    </main>
   );
 }
 

@@ -1,19 +1,41 @@
 function WatchlistCard({ symbol, tick }) {
+  const change = Number(tick?.PRICE_DIFF || 0);
+  const changeClass = change >= 0 ? "is-positive" : "is-negative";
+
   return (
-    <div>
-      <h3>{symbol}</h3>
+    <div className="watchlist-card">
+      <div className="watchlist-card__header">
+        <h3>{symbol}</h3>
+
+        {tick && (
+          <span className={`watchlist-card__change ${changeClass}`}>
+            {change >= 0 ? "+" : ""}
+            {change.toFixed(2)}
+          </span>
+        )}
+      </div>
 
       {tick ? (
-        <>
-          <p>Price: {tick.CLOSE}</p>
-          <p>Open: {tick.OPEN}</p>
-          <p>High: {tick.HIGH}</p>
-          <p>Low: {tick.LOW}</p>
-          <p>Change: {tick.PRICE_DIFF}</p>
-          <p>Time: {tick.TS}</p>
-        </>
+        <div className="watchlist-card__body">
+          <p className="watchlist-card__price">{tick.CLOSE}</p>
+          <dl>
+            <div>
+              <dt>Open</dt>
+              <dd>{tick.OPEN}</dd>
+            </div>
+            <div>
+              <dt>High</dt>
+              <dd>{tick.HIGH}</dd>
+            </div>
+            <div>
+              <dt>Low</dt>
+              <dd>{tick.LOW}</dd>
+            </div>
+          </dl>
+          <p className="watchlist-card__time">{tick.TS}</p>
+        </div>
       ) : (
-        <p>Waiting for live data...</p>
+        <p className="state-message">Waiting for live data...</p>
       )}
     </div>
   );
