@@ -210,6 +210,33 @@
   font-size: 16px;
 }
 
+.dashboard__actions {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.theme-toggle {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-h);
+  background: var(--surface-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+  border-color: var(--accent-border);
+  outline: none;
+}
+
 .connection-pill {
   display: inline-flex;
   gap: 8px;
@@ -581,6 +608,19 @@
 
   .connection-pill {
     margin-top: 14px;
+  }
+
+  .dashboard__actions {
+    justify-content: flex-start;
+    margin-top: 14px;
+  }
+
+  .connection-pill {
+    margin-top: 0;
+  }
+
+  .watchlist__grid {
+    grid-template-columns: 1fr;
   }
 
   .stock-detail__summary {

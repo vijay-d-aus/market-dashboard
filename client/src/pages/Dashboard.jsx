@@ -21,6 +21,10 @@ const getStoredWatchlist = () => {
   }
 };
 
+const getStoredTheme = () => {
+  return localStorage.getItem("theme") === "dark" ? "dark" : "light";
+};
+
 function Dashboard() {
   const [symbols, setSymbols] = useState([]);
   const [symbolsStatus, setSymbolsStatus] = useState("loading");
@@ -30,6 +34,7 @@ function Dashboard() {
   const [connectionStatus, setConnectionStatus] = useState("Disconnected");
   const [selectedSymbol, setSelectedSymbol] = useState(null);
   const [chartData, setChartData] = useState([]);
+  const [theme, setTheme] = useState(getStoredTheme);
   const selectedSymbolRef = useRef(null);
   const watchlistRef = useRef(watchlist);
 
@@ -109,6 +114,11 @@ function Dashboard() {
     }
   }, [watchlist]);
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
   const handleAddSymbol = (symbol) => {
     if (!symbol) return;
 
@@ -150,6 +160,7 @@ function Dashboard() {
   };
 
   const selectedTick = selectedSymbol ? liveData[selectedSymbol] : null;
+  const nextTheme = theme === "dark" ? "light" : "dark";
 
   return (
     <main className="dashboard">
@@ -159,13 +170,23 @@ function Dashboard() {
           <p className="dashboard__subtitle">Live NSE watchlist and charts</p>
         </div>
 
-        <div
-          className={`connection-pill ${
-            connectionStatus === "Connected" ? "is-connected" : ""
-          }`}
-        >
-          <span />
-          {connectionStatus}
+        <div className="dashboard__actions">
+          <button
+            className="theme-toggle"
+            type="button"
+            onClick={() => setTheme(nextTheme)}
+          >
+            {nextTheme} mode
+          </button>
+
+          <div
+            className={`connection-pill ${
+              connectionStatus === "Connected" ? "is-connected" : ""
+            }`}
+          >
+            <span />
+            {connectionStatus}
+          </div>
         </div>
       </header>
 

@@ -12,7 +12,9 @@ A React + Node.js market dashboard for tracking NSE symbols with live ticks, det
 - Historical data loaded through the backend API
 - Watchlist persistence with `localStorage`
 - Historical chart caching with `localStorage`
+- Backend caching for symbol list and historical responses
 - Socket reconnect handling with automatic resubscribe
+- Light/dark theme toggle
 - 5-point moving average overlay on charts
 - Polished loading, empty, error, and connection states
 
@@ -101,6 +103,7 @@ If the backend fails with `EADDRINUSE`, another process is already using port `5
 6. Confirm the Intraday chart updates from live ticks using `CLOSE`.
 7. Toggle to Historical and confirm historical `CLOSE` data loads.
 8. Point out the dashed `MA 5` moving-average overlay.
+9. Toggle light/dark mode from the header.
 
 ## Architecture Overview
 
@@ -121,6 +124,7 @@ mock-data.tealvue.in
 Main frontend flow:
 
 - `Dashboard.jsx` loads symbols, owns the watchlist, listens for live ticks, and opens the selected symbol detail screen.
+- The header includes a visible Socket.IO connection indicator and a light/dark theme toggle.
 - `Watchlist.jsx` and `WatchlistCard.jsx` render persisted watchlist symbols and latest tick values.
 - Removed symbols emit `unsubscribe` so the backend can forward the unsubscribe request to the ticker source.
 - `StockDetail.jsx` owns the Intraday / Historical toggle and loads historical chart data.
@@ -132,6 +136,7 @@ Main backend flow:
 - `marketRoutes.js` exposes `/symbols`, `/intraday`, and `/historical`.
 - `marketController.js` validates requests and returns clean error responses.
 - `marketService.js` calls the mock REST API.
+- `marketService.js` caches symbol-list and historical responses in memory for 5 minutes.
 - `tickerClient.js` connects to the remote ticker socket and relays ticks through the local backend.
 
 ## API Endpoints
@@ -187,6 +192,7 @@ Handling choices:
 - Request validation happens in the backend before proxying to the mock API.
 - Historical errors are surfaced as clean API responses and frontend error states.
 - Reconnect handling resubscribes the current watchlist after the Socket.IO client reconnects.
+- Symbol list and historical responses are cached in the backend to avoid repeatedly hitting the mock API during demos.
 
 ## Verification
 
@@ -229,6 +235,7 @@ curl -s -X POST http://localhost:5050/api/historical \
 - The backend broadcasts received ticks to all connected frontend clients instead of tracking per-client subscriptions.
 - The live chart only keeps the latest 50 selected-symbol points in memory.
 - Historical range is hardcoded for the demo because the mock API only accepts a narrow range.
+- Backend cache is in-memory, so it resets when the server restarts.
 - Port `5050` must be free before starting the backend.
 
 ## With More Time I Would
@@ -236,6 +243,7 @@ curl -s -X POST http://localhost:5050/api/historical \
 - Move watchlist persistence to a backend store such as SQLite.
 - Add remove/reorder actions for the watchlist.
 - Track subscriptions per connected socket so each client receives only the symbols it requested.
+- Replace in-memory backend cache with a more explicit cache layer if the API traffic grows.
 - Add user-configurable historical date range controls with validation.
 - Add automated backend tests for validation and proxy error handling.
 - Add frontend tests for persistence, reconnect handling, and chart mode switching.

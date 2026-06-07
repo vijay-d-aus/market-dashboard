@@ -53,6 +53,7 @@ REST routes live in `server/src/routes/marketRoutes.js`:
 Controllers validate request bodies before forwarding to the service layer. Missing bodies return clean validation errors instead of crashing.
 
 `marketService.js` proxies REST calls to the mock API base URL from `MOCK_API_BASE_URL`.
+It also keeps a small in-memory cache for symbol-list and historical responses with a 5-minute TTL.
 
 `tickerClient.js` connects to the remote Socket.IO source. The backend forwards frontend `subscribe` events to the remote ticker and broadcasts received `ticker` events back to all frontend clients.
 
@@ -64,6 +65,14 @@ Current demo persistence is frontend-only:
 - historical chart cache: `localStorage["historical:<symbol>:<start>:<end>:<limit>:<offset>"]`
 
 This keeps the demo simple and reload-safe. For production, these should move to backend persistence, ideally SQLite for a small local app or Postgres for multi-user use.
+
+Backend caching is also intentionally lightweight:
+
+- symbols cache key: `symbols`
+- historical cache key: `historical:<symbol>:<start>:<end>:<limit>:<offset>`
+- TTL: 5 minutes
+
+The cache reduces repeated mock API calls during demos, but it is not durable and resets when the backend restarts.
 
 ## Reconnect Handling
 
