@@ -34,6 +34,7 @@ Key responsibilities:
 - `Intraday`: uses live chart data passed from `Dashboard`
 - `Historical`: calls `POST /api/historical`
 - Caches historical chart points in `localStorage` using symbol/date/limit/offset as the key
+- Provides a per-symbol target price alert input
 
 `StockChart.jsx` renders the Recharts chart. It plots:
 
@@ -77,6 +78,10 @@ The cache reduces repeated mock API calls during demos, but it is not durable an
 ## Reconnect Handling
 
 Socket reconnects are handled in `Dashboard.jsx`. On `connect`, the app reads the latest watchlist from a ref and emits `subscribe` again. This keeps live ticks working after browser reloads, backend restarts, or transient socket disconnects.
+
+## Price Alerts
+
+Price alerts are frontend-only in this demo. `Dashboard.jsx` stores alert targets by symbol and checks each incoming tick against the previous `CLOSE` value. When the latest `CLOSE` crosses the target in either direction, the alert is marked as triggered and a dismissible in-app notification is shown.
 
 ## Known Constraints
 

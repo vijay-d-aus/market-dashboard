@@ -43,11 +43,19 @@ const setCachedHistoricalData = (symbol, data) => {
   );
 };
 
-function StockDetail({ symbol, tick, chartData, onBack }) {
+function StockDetail({
+  symbol,
+  tick,
+  chartData,
+  priceAlert,
+  onSetPriceAlert,
+  onBack
+}) {
   const [viewMode, setViewMode] = useState("intraday");
   const [historicalChartData, setHistoricalChartData] = useState([]);
   const [historicalStatus, setHistoricalStatus] = useState("idle");
   const [historicalError, setHistoricalError] = useState("");
+  const [alertTarget, setAlertTarget] = useState("");
 
   useEffect(() => {
     if (viewMode !== "historical" || historicalChartData.length > 0) {
@@ -109,6 +117,19 @@ function StockDetail({ symbol, tick, chartData, onBack }) {
     ? "No historical data available."
     : "Waiting for live ticks...";
 
+  const handleAlertSubmit = (event) => {
+    event.preventDefault();
+
+    const target = Number(alertTarget);
+
+    if (!target || Number.isNaN(target)) {
+      return;
+    }
+
+    onSetPriceAlert(symbol, target);
+    setAlertTarget("");
+  };
+
   return (
     <section className="stock-detail">
       <button className="stock-detail__back" type="button" onClick={onBack}>
@@ -145,6 +166,28 @@ function StockDetail({ symbol, tick, chartData, onBack }) {
           Historical
         </button>
       </div>
+
+      <form className="price-alert-form" onSubmit={handleAlertSubmit}>
+        <label htmlFor={`price-alert-${symbol}`}>Price alert</label>
+        <div>
+          <input
+            id={`price-alert-${symbol}`}
+            min="0"
+            step="0.05"
+            type="number"
+            value={alertTarget}
+            placeholder="Target CLOSE"
+            onChange={(event) => setAlertTarget(event.target.value)}
+          />
+          <button type="submit">Set alert</button>
+        </div>
+        {priceAlert && (
+          <p className="price-alert-form__status">
+            Alert at {priceAlert.target}
+            {priceAlert.triggered ? " triggered" : " waiting"}
+          </p>
+        )}
+      </form>
 
       {isHistorical && historicalStatus === "loading" && (
         <p className="state-message">Loading historical data...</p>

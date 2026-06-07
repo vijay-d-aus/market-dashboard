@@ -267,6 +267,39 @@
   background: var(--success);
 }
 
+.price-alert-notification {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  color: var(--text-h);
+  background: var(--accent-bg);
+}
+
+.price-alert-notification p {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.price-alert-notification button,
+.price-alert-form button {
+  padding: 8px 12px;
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  color: var(--text-h);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.price-alert-notification button:hover,
+.price-alert-form button:hover {
+  border-color: var(--accent);
+}
+
 .search-panel {
   margin-bottom: 28px;
 }
@@ -542,6 +575,43 @@
   outline-offset: -2px;
 }
 
+.price-alert-form {
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+}
+
+.price-alert-form label {
+  color: var(--text-h);
+  font-weight: 500;
+}
+
+.price-alert-form > div {
+  display: flex;
+  gap: 8px;
+}
+
+.price-alert-form input {
+  min-width: 0;
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-h);
+  background: var(--surface);
+  font: inherit;
+}
+
+.price-alert-form input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.price-alert-form__status {
+  color: var(--text);
+  font-size: 14px;
+}
+
 .stock-chart {
   position: relative;
   min-height: 340px;
@@ -619,6 +689,14 @@
     margin-top: 0;
   }
 
+  .price-alert-notification {
+    display: block;
+  }
+
+  .price-alert-notification button {
+    margin-top: 10px;
+  }
+
   .watchlist__grid {
     grid-template-columns: 1fr;
   }
@@ -636,6 +714,15 @@
   }
 
   .stock-chart__legend {
+    margin-top: 8px;
+  }
+
+  .price-alert-form > div {
+    display: block;
+  }
+
+  .price-alert-form button {
+    width: 100%;
     margin-top: 8px;
   }
 }

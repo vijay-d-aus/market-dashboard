@@ -25,6 +25,17 @@ const getStoredTheme = () => {
   return localStorage.getItem("theme") === "dark" ? "dark" : "light";
 };
 
+const hasCrossedTarget = (previousPrice, currentPrice, targetPrice) => {
+  if (!previousPrice) {
+    return currentPrice === targetPrice;
+  }
+
+  return (
+    (previousPrice < targetPrice && currentPrice >= targetPrice) ||
+    (previousPrice > targetPrice && currentPrice <= targetPrice)
+  );
+};
+
 function Dashboard() {
   const [symbols, setSymbols] = useState([]);
   const [symbolsStatus, setSymbolsStatus] = useState("loading");
@@ -35,8 +46,11 @@ function Dashboard() {
   const [selectedSymbol, setSelectedSymbol] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [theme, setTheme] = useState(getStoredTheme);
+  const [priceAlerts, setPriceAlerts] = useState({});
+  const [notification, setNotification] = useState(null);
   const selectedSymbolRef = useRef(null);
   const watchlistRef = useRef(watchlist);
+  const liveDataRef = useRef(liveData);
 
   useEffect(() => {
     const fetchSymbols = async () => {
@@ -78,10 +92,46 @@ function Dashboard() {
         return;
       }
 
-      setLiveData((prev) => ({
-        ...prev,
-        [tick.SYMBOL]: tick
-      }));
+      const previousPrice = liveDataRef.current[tick.SYMBOL]
+        ? Number(liveDataRef.current[tick.SYMBOL].CLOSE)
+        : null;
+      const currentPrice = Number(tick.CLOSE);
+
+      setLiveData((prev) => {
+        const next = {
+          ...prev,
+          [tick.SYMBOL]: tick
+        };
+
+        liveDataRef.current = next;
+        return next;
+      });
+
+      setPriceAlerts((prev) => {
+        const alert = prev[tick.SYMBOL];
+
+        if (!alert || alert.triggered) {
+          return prev;
+        }
+
+        if (!hasCrossedTarget(previousPrice, currentPrice, alert.target)) {
+          return prev;
+        }
+
+        setNotification({
+          symbol: tick.SYMBOL,
+          target: alert.target,
+          price: currentPrice
+        });
+
+        return {
+          ...prev,
+          [tick.SYMBOL]: {
+            ...alert,
+            triggered: true
+          }
+        };
+      });
 
       setChartData((prev) => {
         if (!selectedSymbolRef.current || tick.SYMBOL !== selectedSymbolRef.current) {
@@ -135,6 +185,7 @@ function Dashboard() {
     setLiveData((prev) => {
       const next = { ...prev };
       delete next[symbol];
+      liveDataRef.current = next;
       return next;
     });
 
@@ -145,6 +196,18 @@ function Dashboard() {
     if (selectedSymbol === symbol) {
       handleBackToWatchlist();
     }
+  };
+
+  const handleSetPriceAlert = (symbol, target) => {
+    setPriceAlerts((prev) => ({
+      ...prev,
+      [symbol]: {
+        target,
+        triggered: false
+      }
+    }));
+
+    setNotification(null);
   };
 
   const handleSelectSymbol = (symbol) => {
@@ -190,12 +253,28 @@ function Dashboard() {
         </div>
       </header>
 
+      {notification && (
+        <div className="price-alert-notification" role="status">
+          <div>
+            <strong>{notification.symbol} alert triggered</strong>
+            <p>
+              Target {notification.target} crossed at {notification.price}.
+            </p>
+          </div>
+          <button type="button" onClick={() => setNotification(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {selectedSymbol ? (
         <StockDetail
           key={selectedSymbol}
           symbol={selectedSymbol}
           tick={selectedTick}
           chartData={chartData}
+          priceAlert={priceAlerts[selectedSymbol]}
+          onSetPriceAlert={handleSetPriceAlert}
           onBack={handleBackToWatchlist}
         />
       ) : (

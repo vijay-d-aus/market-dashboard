@@ -16,6 +16,7 @@ A React + Node.js market dashboard for tracking NSE symbols with live ticks, det
 - Socket reconnect handling with automatic resubscribe
 - Light/dark theme toggle
 - 5-point moving average overlay on charts
+- Simple per-symbol price alerts with in-app notifications
 - Polished loading, empty, error, and connection states
 
 ## Tech Stack
@@ -104,6 +105,7 @@ If the backend fails with `EADDRINUSE`, another process is already using port `5
 7. Toggle to Historical and confirm historical `CLOSE` data loads.
 8. Point out the dashed `MA 5` moving-average overlay.
 9. Toggle light/dark mode from the header.
+10. Set a target price alert on a symbol detail page and wait for a live `CLOSE` crossing notification.
 
 ## Architecture Overview
 
@@ -128,6 +130,7 @@ Main frontend flow:
 - `Watchlist.jsx` and `WatchlistCard.jsx` render persisted watchlist symbols and latest tick values.
 - Removed symbols emit `unsubscribe` so the backend can forward the unsubscribe request to the ticker source.
 - `StockDetail.jsx` owns the Intraday / Historical toggle and loads historical chart data.
+- `StockDetail.jsx` also contains the price-alert input for the selected symbol.
 - `StockChart.jsx` renders the `CLOSE` price line and the `MA 5` moving-average overlay using Recharts.
 
 Main backend flow:
@@ -247,7 +250,7 @@ curl -s -X POST http://localhost:5050/api/historical \
 - Add user-configurable historical date range controls with validation.
 - Add automated backend tests for validation and proxy error handling.
 - Add frontend tests for persistence, reconnect handling, and chart mode switching.
-- Add a price-alert feature with in-app notifications.
+- Add persistent/backend-backed alerts with alert history and delivery status.
 
 ## Notes
 
