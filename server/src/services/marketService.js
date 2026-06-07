@@ -17,7 +17,26 @@ const fetchIntradayData = async ({ symbol, limit, offset }) => {
   return response.data;
 };
 
+const fetchHistoricalData = async ({
+  symbol,
+  start_date,
+  end_date,
+  limit,
+  offset
+}) => {
+  const response = await axios.post(`${BASE_URL}/historical`, {
+    symbol,
+    start_date,
+    end_date,
+    limit,
+    offset
+  });
+
+  return response.data;
+};
+
 module.exports = {
   fetchSymbols,
-  fetchIntradayData
+  fetchIntradayData,
+  fetchHistoricalData
 };
