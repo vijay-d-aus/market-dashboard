@@ -1,28 +1,171 @@
-# Mock API Exploration Notes
+# Real-Time Market Dashboard
 
-## APIs tested
+A React + Node.js market dashboard for tracking NSE symbols with live ticks, detail charts, historical data, persisted watchlists, and a simple moving-average overlay.
 
-I tested the mock market REST APIs in Postman:
+## Features
 
-1. `GET /api/v1/symbols`
-2. `POST /api/v1/realtime-current`
-3. `POST /api/v1/historical`
+- Search and add symbols to a watchlist
+- Live watchlist cards powered by Socket.IO ticks
+- Symbol detail screen with a live `CLOSE` price chart
+- Intraday / Historical chart toggle
+- Historical data loaded through the backend API
+- Watchlist persistence with `localStorage`
+- Historical chart caching with `localStorage`
+- Socket reconnect handling with automatic resubscribe
+- 5-point moving average overlay on charts
+- Polished loading, empty, error, and connection states
 
-## Findings
+## Tech Stack
 
-The symbols API worked as expected and returned a list of NSE equity symbols with details like symbol, name, exchange, type, and active status.
+- Frontend: React, Vite, Recharts, Axios, Socket.IO client
+- Backend: Node.js, Express, Socket.IO, Axios
+- Data source: `https://mock-data.tealvue.in`
 
-The realtime current API requires a `symbol` field in the request body. When I tested it with a valid symbol like `RELIANCE`, it returned intraday tick data. When I sent an empty request body, the API returned a validation error, which confirms that backend validation will also be needed before forwarding requests.
+## Project Structure
 
-The historical API works only for a limited date range. While the documentation example uses dates like `2026-05-01` to `2026-05-04`, the actual API response says historical data is strictly limited to trading days between `2026-05-04` and `2026-05-08`. This looks like one inconsistency between the documentation example and the API validation behavior.
+```txt
+market-dashboard/
+  client/        React app
+  server/        Express + Socket.IO backend
+  README.md
+  ARCHITECTURE.md
+```
 
-## Inconsistencies or unclear points
+## Prerequisites
 
-1. The documentation example for historical data uses `2026-05-01`, but the actual API rejects dates outside `2026-05-04` to `2026-05-08`.
-2. The WebSocket section mentions “Port 5000”, but the actual connection address is the remote Socket.IO URL `https://mock-data.tealvue.in`. This could be confusing because local port `5000` may also conflict with system services on macOS.
-3. The WebSocket docs mention a simulation loop from May 04 to May 07, but the historical API validation message allows up to May 08. This date boundary needs to be handled carefully.
-4. The subscribe event sends an initial burst of previous ticks before live updates, so the frontend chart logic should avoid treating all received ticks as only new live ticks.
+- Node.js
+- npm
 
-## Backend decisions based on this
+The app currently uses backend port `5050` and frontend port `5173`.
 
-I will keep the frontend calling only my backend, and my backend will call the mock API. I will add validation for required fields like `symbol`, `start_date`, and `end_date`. I will also handle API errors clearly so that users can understand whether the issue is missing input, invalid dates, or a mock API failure.
+## Setup
+
+Install dependencies:
+
+```bash
+cd server
+npm install
+```
+
+```bash
+cd ../client
+npm install
+```
+
+The backend expects `server/.env`:
+
+```env
+PORT=5050
+MOCK_API_BASE_URL=https://mock-data.tealvue.in/api/v1
+```
+
+The frontend can use `client/.env`:
+
+```env
+VITE_API_BASE_URL=http://localhost:5050/api
+VITE_SOCKET_URL=http://localhost:5050
+```
+
+## Running Locally
+
+Start the backend:
+
+```bash
+cd server
+npm run dev
+```
+
+Start the frontend in another terminal:
+
+```bash
+cd client
+npm run dev
+```
+
+Open:
+
+```txt
+http://127.0.0.1:5173/
+```
+
+If the backend fails with `EADDRINUSE`, another process is already using port `5050`. Stop that process or close the duplicate backend terminal before restarting.
+
+## Demo Flow
+
+1. Add symbols such as `RELIANCE`, `TCS`, or `INFY`.
+2. Confirm live prices appear in the watchlist.
+3. Refresh the page and confirm the watchlist persists.
+4. Click `RELIANCE` to open the detail screen.
+5. Confirm the Intraday chart updates from live ticks using `CLOSE`.
+6. Toggle to Historical and confirm historical `CLOSE` data loads.
+7. Point out the dashed `MA 5` moving-average overlay.
+
+## API Endpoints
+
+Backend routes are mounted under `/api`.
+
+### `GET /api/symbols`
+
+Returns available market symbols.
+
+### `POST /api/intraday`
+
+Request:
+
+```json
+{
+  "symbol": "RELIANCE",
+  "limit": 100,
+  "offset": 0
+}
+```
+
+### `POST /api/historical`
+
+Request:
+
+```json
+{
+  "symbol": "RELIANCE",
+  "start_date": "2026-05-04",
+  "end_date": "2026-05-08",
+  "limit": 100,
+  "offset": 0
+}
+```
+
+The mock historical API accepts a limited date range. This project uses `2026-05-04` to `2026-05-08` for the demo.
+
+## Verification
+
+Frontend checks:
+
+```bash
+cd client
+npm run lint
+npm run build
+```
+
+Backend syntax spot checks:
+
+```bash
+node --check server/src/server.js
+node --check server/src/controllers/marketController.js
+node --check server/src/routes/marketRoutes.js
+node --check server/src/services/marketService.js
+```
+
+Historical endpoint smoke test:
+
+```bash
+curl -s -X POST http://localhost:5050/api/historical \
+  -H 'Content-Type: application/json' \
+  -d '{"symbol":"RELIANCE","start_date":"2026-05-04","end_date":"2026-05-08","limit":1,"offset":0}'
+```
+
+## Notes
+
+- The frontend calls only the local backend, not the remote mock API directly.
+- The backend proxies REST requests and bridges remote ticker events to frontend clients.
+- Watchlist and historical chart cache are frontend-only for this demo.
+- A production version should move persistence to a backend store such as SQLite or Postgres.
