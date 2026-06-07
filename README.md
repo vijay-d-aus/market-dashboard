@@ -185,6 +185,7 @@ During mock API exploration I found a few differences between the documentation 
 - The historical API examples mention dates outside the range that the API accepts. The actual usable trading-day range is `2026-05-04` through `2026-05-08`, so the frontend historical demo uses that range.
 - The WebSocket documentation mentions a local-style port, but the real remote Socket.IO source is `https://mock-data.tealvue.in`. The backend connects to that remote source and exposes a local Socket.IO server for the frontend.
 - The ticker subscription can send a burst of existing or simulated ticks before ongoing updates. The frontend treats incoming ticks as chart points for the selected symbol and caps the live chart to the latest 50 points.
+- The docs show tick price as `LTP`, while the tested mock payloads include `CLOSE`. The frontend uses `CLOSE` as requested and falls back to `LTP` if a payload only has the documented field.
 - Empty POST bodies can cause destructuring errors if not guarded. The backend controllers use `req.body || {}` and return validation messages such as `Symbol is required`.
 - Pagination values can arrive as strings from clients, so the backend normalizes and validates `limit` and `offset` before proxying.
 - Historical date inputs are validated for `YYYY-MM-DD` format and start/end ordering before forwarding.

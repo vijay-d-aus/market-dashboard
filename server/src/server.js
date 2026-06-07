@@ -61,12 +61,12 @@ io.on("connection", (frontendSocket) => {
 });
 
 tickerClient.on("ticker", (tick) => {
-  if (!tick?.SYMBOL || tick.CLOSE === undefined) {
+  if (!tick?.SYMBOL || (tick.CLOSE === undefined && tick.LTP === undefined)) {
     console.log("Malformed tick skipped:", tick);
     return;
   }
 
-  console.log("Tick received:", tick.SYMBOL, tick.CLOSE);
+  console.log("Tick received:", tick.SYMBOL, tick.CLOSE ?? tick.LTP);
 
   io.emit("ticker", tick);
 });

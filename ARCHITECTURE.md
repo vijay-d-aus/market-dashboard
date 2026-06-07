@@ -27,7 +27,7 @@ Key responsibilities:
 - Restore watchlist on refresh
 - Resubscribe the restored watchlist on socket reconnect
 - Store latest ticks by `SYMBOL`
-- Build intraday chart points from live tick `CLOSE`
+- Build intraday chart points from live tick `CLOSE`, falling back to `LTP` if needed
 
 `StockDetail.jsx` owns the chart mode:
 

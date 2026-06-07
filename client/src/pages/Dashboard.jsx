@@ -7,7 +7,7 @@ import StockDetail from "../components/StockDetail";
 
 const toChartPoint = (tick) => ({
   time: tick.TS ? tick.TS.slice(11, 19) : new Date().toLocaleTimeString(),
-  price: Number(tick.CLOSE)
+  price: Number(tick.CLOSE ?? tick.LTP)
 });
 
 const getStoredWatchlist = () => {
@@ -87,15 +87,17 @@ function Dashboard() {
     });
 
     socket.on("ticker", (tick) => {
-      if (!tick?.SYMBOL || tick.CLOSE === undefined || Number.isNaN(Number(tick.CLOSE))) {
+      const price = Number(tick?.CLOSE ?? tick?.LTP);
+
+      if (!tick?.SYMBOL || Number.isNaN(price)) {
         console.log("Malformed tick skipped", tick);
         return;
       }
 
       const previousPrice = liveDataRef.current[tick.SYMBOL]
-        ? Number(liveDataRef.current[tick.SYMBOL].CLOSE)
+        ? Number(liveDataRef.current[tick.SYMBOL].CLOSE ?? liveDataRef.current[tick.SYMBOL].LTP)
         : null;
-      const currentPrice = Number(tick.CLOSE);
+      const currentPrice = price;
 
       setLiveData((prev) => {
         const next = {

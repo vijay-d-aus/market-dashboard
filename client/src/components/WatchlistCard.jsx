@@ -1,6 +1,7 @@
 function WatchlistCard({ symbol, tick }) {
   const change = Number(tick?.PRICE_DIFF || 0);
   const previousClose = Number(tick?.PREV_CLOSE || 0);
+  const price = tick?.CLOSE ?? tick?.LTP;
   const percentChange = previousClose
     ? (change / previousClose) * 100
     : 0;
@@ -22,7 +23,7 @@ function WatchlistCard({ symbol, tick }) {
       {tick ? (
         <div className="watchlist-card__body">
           <span className="watchlist-card__label">LTP</span>
-          <p className="watchlist-card__price">{tick.CLOSE}</p>
+          <p className="watchlist-card__price">{price}</p>
           <dl>
             <div>
               <dt>Open</dt>
