@@ -5,7 +5,8 @@ A React + Node.js market dashboard for tracking NSE symbols with live ticks, det
 ## Features
 
 - Search and add symbols to a watchlist
-- Live watchlist cards powered by Socket.IO ticks
+- Live watchlist cards powered by Socket.IO ticks with LTP, absolute change, and percentage change
+- Remove symbols and unsubscribe from their ticker stream
 - Symbol detail screen with a live `CLOSE` price chart
 - Intraday / Historical chart toggle
 - Historical data loaded through the backend API
@@ -93,12 +94,13 @@ If the backend fails with `EADDRINUSE`, another process is already using port `5
 ## Demo Flow
 
 1. Add symbols such as `RELIANCE`, `TCS`, or `INFY`.
-2. Confirm live prices appear in the watchlist.
+2. Confirm live prices, absolute change, and percentage change appear in the watchlist.
 3. Refresh the page and confirm the watchlist persists.
-4. Click `RELIANCE` to open the detail screen.
-5. Confirm the Intraday chart updates from live ticks using `CLOSE`.
-6. Toggle to Historical and confirm historical `CLOSE` data loads.
-7. Point out the dashed `MA 5` moving-average overlay.
+4. Remove a symbol and confirm it leaves the watchlist.
+5. Click `RELIANCE` to open the detail screen.
+6. Confirm the Intraday chart updates from live ticks using `CLOSE`.
+7. Toggle to Historical and confirm historical `CLOSE` data loads.
+8. Point out the dashed `MA 5` moving-average overlay.
 
 ## Architecture Overview
 
@@ -120,6 +122,7 @@ Main frontend flow:
 
 - `Dashboard.jsx` loads symbols, owns the watchlist, listens for live ticks, and opens the selected symbol detail screen.
 - `Watchlist.jsx` and `WatchlistCard.jsx` render persisted watchlist symbols and latest tick values.
+- Removed symbols emit `unsubscribe` so the backend can forward the unsubscribe request to the ticker source.
 - `StockDetail.jsx` owns the Intraday / Historical toggle and loads historical chart data.
 - `StockChart.jsx` renders the `CLOSE` price line and the `MA 5` moving-average overlay using Recharts.
 
@@ -175,6 +178,8 @@ During mock API exploration I found a few differences between the documentation 
 - The WebSocket documentation mentions a local-style port, but the real remote Socket.IO source is `https://mock-data.tealvue.in`. The backend connects to that remote source and exposes a local Socket.IO server for the frontend.
 - The ticker subscription can send a burst of existing or simulated ticks before ongoing updates. The frontend treats incoming ticks as chart points for the selected symbol and caps the live chart to the latest 50 points.
 - Empty POST bodies can cause destructuring errors if not guarded. The backend controllers use `req.body || {}` and return validation messages such as `Symbol is required`.
+- Pagination values can arrive as strings from clients, so the backend normalizes and validates `limit` and `offset` before proxying.
+- Historical date inputs are validated for `YYYY-MM-DD` format and start/end ordering before forwarding.
 
 Handling choices:
 
@@ -224,7 +229,6 @@ curl -s -X POST http://localhost:5050/api/historical \
 - The backend broadcasts received ticks to all connected frontend clients instead of tracking per-client subscriptions.
 - The live chart only keeps the latest 50 selected-symbol points in memory.
 - Historical range is hardcoded for the demo because the mock API only accepts a narrow range.
-- There is no remove-symbol action yet.
 - Port `5050` must be free before starting the backend.
 
 ## With More Time I Would

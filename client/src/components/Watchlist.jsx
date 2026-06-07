@@ -1,6 +1,11 @@
 import WatchlistCard from "./WatchlistCard";
 
-function Watchlist({ watchlist, liveData, onSelectSymbol }) {
+function Watchlist({
+  watchlist,
+  liveData,
+  onSelectSymbol,
+  onRemoveSymbol
+}) {
   return (
     <section className="watchlist">
       <h2>Watchlist</h2>
@@ -13,14 +18,22 @@ function Watchlist({ watchlist, liveData, onSelectSymbol }) {
       ) : (
         <div className="watchlist__grid">
           {watchlist.map((symbol) => (
-            <button
-              className="watchlist__item"
-              key={symbol}
-              onClick={() => onSelectSymbol(symbol)}
-              type="button"
-            >
-              <WatchlistCard symbol={symbol} tick={liveData[symbol]} />
-            </button>
+            <div className="watchlist__item" key={symbol}>
+              <button
+                className="watchlist__open"
+                onClick={() => onSelectSymbol(symbol)}
+                type="button"
+              >
+                <WatchlistCard symbol={symbol} tick={liveData[symbol]} />
+              </button>
+              <button
+                className="watchlist__remove"
+                onClick={() => onRemoveSymbol(symbol)}
+                type="button"
+              >
+                Remove
+              </button>
+            </div>
           ))}
         </div>
       )}

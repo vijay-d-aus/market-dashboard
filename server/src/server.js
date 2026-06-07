@@ -32,11 +32,25 @@ io.on("connection", (frontendSocket) => {
   console.log("Frontend connected:", frontendSocket.id);
 
   frontendSocket.on("subscribe", (symbols) => {
+    if (!Array.isArray(symbols)) {
+      frontendSocket.emit("subscription_error", {
+        message: "Subscribe payload must be an array of symbols"
+      });
+      return;
+    }
+
     console.log("Frontend subscribed:", symbols);
     tickerClient.emit("subscribe", symbols);
   });
 
   frontendSocket.on("unsubscribe", (symbols) => {
+    if (!Array.isArray(symbols)) {
+      frontendSocket.emit("subscription_error", {
+        message: "Unsubscribe payload must be an array of symbols"
+      });
+      return;
+    }
+
     console.log("Frontend unsubscribed:", symbols);
     tickerClient.emit("unsubscribe", symbols);
   });
@@ -47,6 +61,11 @@ io.on("connection", (frontendSocket) => {
 });
 
 tickerClient.on("ticker", (tick) => {
+  if (!tick?.SYMBOL || tick.CLOSE === undefined) {
+    console.log("Malformed tick skipped:", tick);
+    return;
+  }
+
   console.log("Tick received:", tick.SYMBOL, tick.CLOSE);
 
   io.emit("ticker", tick);

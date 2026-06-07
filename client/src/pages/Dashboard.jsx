@@ -68,6 +68,11 @@ function Dashboard() {
     });
 
     socket.on("ticker", (tick) => {
+      if (!tick?.SYMBOL || tick.CLOSE === undefined || Number.isNaN(Number(tick.CLOSE))) {
+        console.log("Malformed tick skipped", tick);
+        return;
+      }
+
       setLiveData((prev) => ({
         ...prev,
         [tick.SYMBOL]: tick
@@ -110,6 +115,25 @@ function Dashboard() {
     if (!watchlist.includes(symbol)) {
       const updatedWatchlist = [...watchlist, symbol];
       setWatchlist(updatedWatchlist);
+    }
+  };
+
+  const handleRemoveSymbol = (symbol) => {
+    const updatedWatchlist = watchlist.filter((item) => item !== symbol);
+
+    setWatchlist(updatedWatchlist);
+    setLiveData((prev) => {
+      const next = { ...prev };
+      delete next[symbol];
+      return next;
+    });
+
+    if (socket.connected) {
+      socket.emit("unsubscribe", [symbol]);
+    }
+
+    if (selectedSymbol === symbol) {
+      handleBackToWatchlist();
     }
   };
 
@@ -166,6 +190,7 @@ function Dashboard() {
             watchlist={watchlist}
             liveData={liveData}
             onSelectSymbol={handleSelectSymbol}
+            onRemoveSymbol={handleRemoveSymbol}
           />
         </>
       )}
