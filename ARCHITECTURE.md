@@ -57,7 +57,9 @@ REST routes live in `server/src/routes/marketRoutes.js`:
 Controllers validate request bodies before forwarding to the service layer. Missing bodies return clean validation errors instead of crashing.
 
 `marketService.js` proxies REST calls to the mock API base URL from `MOCK_API_BASE_URL`.
-It also keeps a small in-memory cache for symbol-list and historical responses with a 5-minute TTL.
+It calls through `cacheStore.js` for cacheable symbol-list and historical responses.
+
+`cacheStore.js` uses Node's built-in SQLite module to store cache entries in `server/data/market-dashboard.sqlite`. Each cache row stores a key, serialized JSON response, and expiry timestamp.
 
 `watchlistStore.js` uses Node's built-in SQLite module to store watchlist symbols and their positions in `server/data/market-dashboard.sqlite`. Incoming watchlists are normalized to uppercase, deduplicated, and written inside a transaction.
 
@@ -73,13 +75,13 @@ Historical chart caching is still frontend-local:
 
 - historical chart cache: `localStorage["historical:<symbol>:<start>:<end>:<limit>:<offset>"]`
 
-Backend caching is also intentionally lightweight:
+Backend caching is intentionally lightweight but explicit:
 
 - symbols cache key: `symbols`
 - historical cache key: `historical:<symbol>:<start>:<end>:<limit>:<offset>`
 - TTL: 5 minutes
 
-The cache reduces repeated mock API calls during demos, but it is not durable and resets when the backend restarts.
+The cache reduces repeated mock API calls during demos and can survive backend restarts until entries expire. It is still local to the app database.
 
 ## Reconnect Handling
 

@@ -1,41 +1,14 @@
 const axios = require("axios");
+const cacheStore = require("./cacheStore");
 
 const BASE_URL = process.env.MOCK_API_BASE_URL;
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const cache = new Map();
-
-const getCachedValue = (key) => {
-  const entry = cache.get(key);
-
-  if (!entry) return null;
-
-  if (Date.now() > entry.expiresAt) {
-    cache.delete(key);
-    return null;
-  }
-
-  return entry.value;
-};
-
-const setCachedValue = (key, value) => {
-  cache.set(key, {
-    value,
-    expiresAt: Date.now() + CACHE_TTL_MS
-  });
-};
 
 const fetchSymbols = async () => {
-  const cacheKey = "symbols";
-  const cached = getCachedValue(cacheKey);
-
-  if (cached) {
-    return cached;
-  }
-
-  const response = await axios.get(`${BASE_URL}/symbols`);
-  setCachedValue(cacheKey, response.data);
-
-  return response.data;
+  return cacheStore.getOrSet("symbols", CACHE_TTL_MS, async () => {
+    const response = await axios.get(`${BASE_URL}/symbols`);
+    return response.data;
+  });
 };
 
 const fetchIntradayData = async ({ symbol, limit, offset }) => {
@@ -63,23 +36,17 @@ const fetchHistoricalData = async ({
     limit,
     offset
   ].join(":");
-  const cached = getCachedValue(cacheKey);
+  return cacheStore.getOrSet(cacheKey, CACHE_TTL_MS, async () => {
+    const response = await axios.post(`${BASE_URL}/historical`, {
+      symbol,
+      start_date,
+      end_date,
+      limit,
+      offset
+    });
 
-  if (cached) {
-    return cached;
-  }
-
-  const response = await axios.post(`${BASE_URL}/historical`, {
-    symbol,
-    start_date,
-    end_date,
-    limit,
-    offset
+    return response.data;
   });
-
-  setCachedValue(cacheKey, response.data);
-
-  return response.data;
 };
 
 module.exports = {
