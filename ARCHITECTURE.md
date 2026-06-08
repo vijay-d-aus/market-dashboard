@@ -98,6 +98,8 @@ Price alerts are frontend-only in this demo. `Dashboard.jsx` stores alert target
 
 Backend tests use Node's built-in test runner. They call the market controllers directly with mocked responses and mocked service failures to cover request validation and proxy error handling without hitting the remote mock API.
 
+Frontend tests use Vitest, jsdom, and Testing Library. They mock the backend API, socket client, and chart renderer to cover watchlist persistence, reconnect resubscribe behavior, and Intraday/Historical mode switching.
+
 ## Known Constraints
 
 - Watchlist storage is durable but local to one SQLite database, not scoped per user.

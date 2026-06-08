@@ -22,6 +22,7 @@ A React + Node.js market dashboard for tracking NSE symbols with live ticks, det
 - Simple per-symbol price alerts with in-app notifications
 - Polished loading, empty, error, and connection states
 - Backend tests for validation and proxy error handling
+- Frontend tests for persistence, reconnect handling, and chart mode switching
 
 ## Tech Stack
 
@@ -231,6 +232,7 @@ Frontend checks:
 
 ```bash
 cd client
+npm test
 npm run lint
 npm run build
 ```
@@ -290,7 +292,6 @@ curl -s http://localhost:5050/api/watchlist
 
 ## With More Time I Would
 
-- Add frontend tests for persistence, reconnect handling, and chart mode switching.
 - Add persistent/backend-backed alerts with alert history and delivery status.
 
 ## Notes
