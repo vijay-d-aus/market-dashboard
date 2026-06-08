@@ -279,7 +279,6 @@ curl -s http://localhost:5050/api/watchlist
 
 ## With More Time I Would
 
-- Track subscriptions per connected socket so each client receives only the symbols it requested.
 - Replace in-memory backend cache with a more explicit cache layer if the API traffic grows.
 - Add user-configurable historical date range controls with validation.
 - Add automated backend tests for validation and proxy error handling.
