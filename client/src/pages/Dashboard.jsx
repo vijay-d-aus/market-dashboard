@@ -234,6 +234,28 @@ function Dashboard() {
     await persistWatchlist(updatedWatchlist, previousWatchlist);
   };
 
+  const handleReorderSymbol = async (symbol, direction) => {
+    const currentIndex = watchlist.indexOf(symbol);
+    const nextIndex = currentIndex + direction;
+
+    if (
+      currentIndex === -1 ||
+      nextIndex < 0 ||
+      nextIndex >= watchlist.length
+    ) {
+      return;
+    }
+
+    const updatedWatchlist = [...watchlist];
+    [updatedWatchlist[currentIndex], updatedWatchlist[nextIndex]] = [
+      updatedWatchlist[nextIndex],
+      updatedWatchlist[currentIndex]
+    ];
+
+    setWatchlist(updatedWatchlist);
+    await persistWatchlist(updatedWatchlist, watchlist);
+  };
+
   const handleSetPriceAlert = (symbol, target) => {
     setPriceAlerts((prev) => ({
       ...prev,
@@ -329,6 +351,7 @@ function Dashboard() {
             errorMessage={watchlistError}
             onSelectSymbol={handleSelectSymbol}
             onRemoveSymbol={handleRemoveSymbol}
+            onReorderSymbol={handleReorderSymbol}
           />
         </>
       )}

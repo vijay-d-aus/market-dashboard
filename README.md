@@ -7,6 +7,7 @@ A React + Node.js market dashboard for tracking NSE symbols with live ticks, det
 - Search and add symbols to a watchlist
 - Live watchlist cards powered by Socket.IO ticks with LTP, absolute change, and percentage change
 - Remove symbols and unsubscribe from their ticker stream
+- Reorder watchlist symbols with persisted up/down actions
 - Symbol detail screen with a live `CLOSE` price chart
 - Intraday / Historical chart toggle
 - Historical data loaded through the backend API
@@ -100,12 +101,13 @@ If the backend fails with `EADDRINUSE`, another process is already using port `5
 2. Confirm live prices, absolute change, and percentage change appear in the watchlist.
 3. Refresh the page and confirm the watchlist persists.
 4. Remove a symbol and confirm it leaves the watchlist.
-5. Click `RELIANCE` to open the detail screen.
-6. Confirm the Intraday chart updates from live ticks using `CLOSE`.
-7. Toggle to Historical and confirm historical `CLOSE` data loads.
-8. Point out the dashed `MA 5` moving-average overlay.
-9. Toggle light/dark mode from the header.
-10. Set a target price alert on a symbol detail page and wait for a live `CLOSE` crossing notification.
+5. Move a symbol up or down, refresh, and confirm the order persists.
+6. Click `RELIANCE` to open the detail screen.
+7. Confirm the Intraday chart updates from live ticks using `CLOSE`.
+8. Toggle to Historical and confirm historical `CLOSE` data loads.
+9. Point out the dashed `MA 5` moving-average overlay.
+10. Toggle light/dark mode from the header.
+11. Set a target price alert on a symbol detail page and wait for a live `CLOSE` crossing notification.
 
 ## Architecture Overview
 
@@ -129,6 +131,7 @@ Main frontend flow:
 - The header includes a visible Socket.IO connection indicator and a light/dark theme toggle.
 - `Watchlist.jsx` and `WatchlistCard.jsx` render SQLite-backed watchlist symbols and latest tick values.
 - Removed symbols emit `unsubscribe` so the backend can forward the unsubscribe request to the ticker source.
+- Up/down reorder actions save the new watchlist order through `PUT /api/watchlist`.
 - `StockDetail.jsx` owns the Intraday / Historical toggle and loads historical chart data.
 - `StockDetail.jsx` also contains the price-alert input for the selected symbol.
 - `StockChart.jsx` renders the `CLOSE` price line and the `MA 5` moving-average overlay using Recharts.
@@ -193,7 +196,7 @@ Request:
 }
 ```
 
-The backend normalizes symbols to uppercase, removes duplicates, and stores the list durably in `server/data/market-dashboard.sqlite`.
+The backend normalizes symbols to uppercase, removes duplicates, and stores the ordered list durably in `server/data/market-dashboard.sqlite`.
 
 ## API Inconsistencies And Handling
 
@@ -274,7 +277,6 @@ curl -s http://localhost:5050/api/watchlist
 
 ## With More Time I Would
 
-- Add remove/reorder actions for the watchlist.
 - Track subscriptions per connected socket so each client receives only the symbols it requested.
 - Replace in-memory backend cache with a more explicit cache layer if the API traffic grows.
 - Add user-configurable historical date range controls with validation.

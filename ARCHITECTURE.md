@@ -25,6 +25,7 @@ Key responsibilities:
 - Load symbols from `GET /api/symbols`
 - Persist `watchlist` through `GET /api/watchlist` and `PUT /api/watchlist`
 - Restore the SQLite-backed watchlist on refresh
+- Save remove and reorder actions through the same backend watchlist endpoint
 - Resubscribe the restored watchlist on socket reconnect
 - Store latest ticks by `SYMBOL`
 - Build intraday chart points from live tick `CLOSE`, falling back to `LTP` if needed
@@ -58,7 +59,7 @@ Controllers validate request bodies before forwarding to the service layer. Miss
 `marketService.js` proxies REST calls to the mock API base URL from `MOCK_API_BASE_URL`.
 It also keeps a small in-memory cache for symbol-list and historical responses with a 5-minute TTL.
 
-`watchlistStore.js` uses Node's built-in SQLite module to store watchlist symbols in `server/data/market-dashboard.sqlite`. Incoming watchlists are normalized to uppercase, deduplicated, and written inside a transaction.
+`watchlistStore.js` uses Node's built-in SQLite module to store watchlist symbols and their positions in `server/data/market-dashboard.sqlite`. Incoming watchlists are normalized to uppercase, deduplicated, and written inside a transaction.
 
 `tickerClient.js` connects to the remote Socket.IO source. The backend forwards frontend `subscribe` events to the remote ticker and broadcasts received `ticker` events back to all frontend clients.
 

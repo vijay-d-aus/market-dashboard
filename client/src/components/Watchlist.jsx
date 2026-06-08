@@ -6,7 +6,8 @@ function Watchlist({
   status,
   errorMessage,
   onSelectSymbol,
-  onRemoveSymbol
+  onRemoveSymbol,
+  onReorderSymbol
 }) {
   return (
     <section className="watchlist">
@@ -28,7 +29,7 @@ function Watchlist({
         </div>
       ) : (
         <div className="watchlist__grid">
-          {watchlist.map((symbol) => (
+          {watchlist.map((symbol, index) => (
             <div className="watchlist__item" key={symbol}>
               <button
                 className="watchlist__open"
@@ -37,13 +38,35 @@ function Watchlist({
               >
                 <WatchlistCard symbol={symbol} tick={liveData[symbol]} />
               </button>
-              <button
-                className="watchlist__remove"
-                onClick={() => onRemoveSymbol(symbol)}
-                type="button"
-              >
-                Remove
-              </button>
+              <div className="watchlist__actions">
+                <button
+                  aria-label={`Move ${symbol} up`}
+                  className="watchlist__action"
+                  disabled={index === 0}
+                  onClick={() => onReorderSymbol(symbol, -1)}
+                  title="Move up"
+                  type="button"
+                >
+                  Up
+                </button>
+                <button
+                  aria-label={`Move ${symbol} down`}
+                  className="watchlist__action"
+                  disabled={index === watchlist.length - 1}
+                  onClick={() => onReorderSymbol(symbol, 1)}
+                  title="Move down"
+                  type="button"
+                >
+                  Down
+                </button>
+                <button
+                  className="watchlist__remove"
+                  onClick={() => onRemoveSymbol(symbol)}
+                  type="button"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           ))}
         </div>

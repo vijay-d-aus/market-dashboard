@@ -373,20 +373,42 @@
 }
 
 .watchlist__open:focus-visible,
+.watchlist__action:focus-visible,
 .watchlist__remove:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
+.watchlist__actions {
+  display: grid;
+  grid-template-columns: 64px 72px 1fr;
+  border-top: 1px solid var(--border);
+}
+
+.watchlist__action,
 .watchlist__remove {
   width: 100%;
   padding: 8px 16px;
   border: 0;
-  border-top: 1px solid var(--border);
   color: var(--text);
   background: transparent;
   cursor: pointer;
   text-align: left;
+}
+
+.watchlist__action {
+  border-right: 1px solid var(--border);
+  text-align: center;
+}
+
+.watchlist__action:hover:not(:disabled) {
+  color: var(--accent);
+  background: var(--surface);
+}
+
+.watchlist__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .watchlist__remove:hover {
