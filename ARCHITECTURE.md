@@ -2,11 +2,11 @@
 
 ## Overview
 
-The app is split into a React frontend and a Node/Express backend. The frontend owns the user experience, chart rendering, watchlist persistence, and temporary historical cache. The backend owns communication with the mock market API and the remote ticker socket.
+The app is split into a React frontend and a Node/Express backend. The frontend owns the user experience, chart rendering, live state, and temporary historical cache. The backend owns communication with the mock market API, the remote ticker socket, and watchlist persistence.
 
 ```txt
 React client
-  | REST: /api/symbols, /api/historical, /api/intraday
+  | REST: /api/symbols, /api/historical, /api/intraday, /api/watchlist
   | Socket.IO: subscribe, ticker
   v
 Node/Express backend
@@ -18,13 +18,13 @@ mock-data.tealvue.in
 
 ## Frontend
 
-`Dashboard.jsx` is the main state container. It loads symbols, stores the watchlist, listens for socket ticks, and opens the selected symbol detail screen.
+`Dashboard.jsx` is the main state container. It loads symbols, loads the persisted watchlist from the backend, listens for socket ticks, and opens the selected symbol detail screen.
 
 Key responsibilities:
 
 - Load symbols from `GET /api/symbols`
-- Persist `watchlist` to `localStorage`
-- Restore watchlist on refresh
+- Persist `watchlist` through `GET /api/watchlist` and `PUT /api/watchlist`
+- Restore the SQLite-backed watchlist on refresh
 - Resubscribe the restored watchlist on socket reconnect
 - Store latest ticks by `SYMBOL`
 - Build intraday chart points from live tick `CLOSE`, falling back to `LTP` if needed
@@ -50,22 +50,27 @@ REST routes live in `server/src/routes/marketRoutes.js`:
 - `GET /api/symbols`
 - `POST /api/intraday`
 - `POST /api/historical`
+- `GET /api/watchlist`
+- `PUT /api/watchlist`
 
 Controllers validate request bodies before forwarding to the service layer. Missing bodies return clean validation errors instead of crashing.
 
 `marketService.js` proxies REST calls to the mock API base URL from `MOCK_API_BASE_URL`.
 It also keeps a small in-memory cache for symbol-list and historical responses with a 5-minute TTL.
 
+`watchlistStore.js` uses Node's built-in SQLite module to store watchlist symbols in `server/data/market-dashboard.sqlite`. Incoming watchlists are normalized to uppercase, deduplicated, and written inside a transaction.
+
 `tickerClient.js` connects to the remote Socket.IO source. The backend forwards frontend `subscribe` events to the remote ticker and broadcasts received `ticker` events back to all frontend clients.
 
 ## Persistence And Caching
 
-Current demo persistence is frontend-only:
+Watchlist persistence is backend-owned:
 
-- `watchlist`: `localStorage["watchlist"]`
+- `watchlist`: `server/data/market-dashboard.sqlite`
+
+Historical chart caching is still frontend-local:
+
 - historical chart cache: `localStorage["historical:<symbol>:<start>:<end>:<limit>:<offset>"]`
-
-This keeps the demo simple and reload-safe. For production, these should move to backend persistence, ideally SQLite for a small local app or Postgres for multi-user use.
 
 Backend caching is also intentionally lightweight:
 
@@ -85,6 +90,7 @@ Price alerts are frontend-only in this demo. `Dashboard.jsx` stores alert target
 
 ## Known Constraints
 
+- Watchlist storage is durable but local to one SQLite database, not scoped per user.
 - Historical date range is constrained by the mock API.
 - The backend currently broadcasts all received ticks to connected clients.
 - Port `5050` must be free before starting the backend.

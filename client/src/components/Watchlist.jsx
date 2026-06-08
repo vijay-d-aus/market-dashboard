@@ -3,6 +3,8 @@ import WatchlistCard from "./WatchlistCard";
 function Watchlist({
   watchlist,
   liveData,
+  status,
+  errorMessage,
   onSelectSymbol,
   onRemoveSymbol
 }) {
@@ -10,7 +12,16 @@ function Watchlist({
     <section className="watchlist">
       <h2>Watchlist</h2>
 
-      {watchlist.length === 0 ? (
+      {errorMessage && (
+        <div className="error-state">
+          <h3>Watchlist sync issue</h3>
+          <p>{errorMessage}</p>
+        </div>
+      )}
+
+      {status === "loading" ? (
+        <p className="state-message">Loading saved watchlist...</p>
+      ) : watchlist.length === 0 ? (
         <div className="empty-state">
           <h3>No symbols added yet</h3>
           <p>Add a symbol to start streaming live prices.</p>

@@ -1,4 +1,5 @@
 const marketService = require("../services/marketService");
+const watchlistStore = require("../services/watchlistStore");
 
 const normalizePagination = ({ limit = 100, offset = 0 }) => {
   const parsedLimit = Number(limit);
@@ -160,8 +161,71 @@ const getHistoricalData = async (req, res) => {
   }
 };
 
+const getWatchlist = (req, res) => {
+  try {
+    res.status(200).json({
+      success: true,
+      data: watchlistStore.getWatchlist()
+    });
+  } catch (error) {
+    console.log("Watchlist read error:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to load watchlist"
+    });
+  }
+};
+
+const updateWatchlist = (req, res) => {
+  try {
+    const { symbols } = req.body || {};
+
+    if (!Array.isArray(symbols)) {
+      return res.status(400).json({
+        success: false,
+        message: "Symbols must be an array"
+      });
+    }
+
+    if (symbols.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Watchlist cannot contain more than 100 symbols"
+      });
+    }
+
+    const invalidSymbol = symbols.find((symbol) => {
+      return typeof symbol !== "string" || !symbol.trim();
+    });
+
+    if (invalidSymbol !== undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Symbols must be non-empty strings"
+      });
+    }
+
+    const data = watchlistStore.replaceWatchlist(symbols);
+
+    res.status(200).json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.log("Watchlist update error:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to save watchlist"
+    });
+  }
+};
+
 module.exports = {
   getSymbols,
   getIntradayData,
-  getHistoricalData
+  getHistoricalData,
+  getWatchlist,
+  updateWatchlist
 };

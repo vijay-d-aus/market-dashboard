@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import api from "../services/api";
+import { fetchWatchlist, saveWatchlist } from "../services/api";
 import socket from "../services/socket";
 import SearchBar from "../components/SearchBar";
 import Watchlist from "../components/Watchlist";
@@ -9,17 +10,6 @@ const toChartPoint = (tick) => ({
   time: tick.TS ? tick.TS.slice(11, 19) : new Date().toLocaleTimeString(),
   price: Number(tick.CLOSE ?? tick.LTP)
 });
-
-const getStoredWatchlist = () => {
-  try {
-    const storedWatchlist = localStorage.getItem("watchlist");
-    const parsedWatchlist = storedWatchlist ? JSON.parse(storedWatchlist) : [];
-
-    return Array.isArray(parsedWatchlist) ? parsedWatchlist : [];
-  } catch {
-    return [];
-  }
-};
 
 const getStoredTheme = () => {
   return localStorage.getItem("theme") === "dark" ? "dark" : "light";
@@ -40,7 +30,9 @@ function Dashboard() {
   const [symbols, setSymbols] = useState([]);
   const [symbolsStatus, setSymbolsStatus] = useState("loading");
   const [symbolsError, setSymbolsError] = useState("");
-  const [watchlist, setWatchlist] = useState(getStoredWatchlist);
+  const [watchlist, setWatchlist] = useState([]);
+  const [watchlistStatus, setWatchlistStatus] = useState("loading");
+  const [watchlistError, setWatchlistError] = useState("");
   const [liveData, setLiveData] = useState({});
   const [connectionStatus, setConnectionStatus] = useState("Disconnected");
   const [selectedSymbol, setSelectedSymbol] = useState(null);
@@ -53,22 +45,41 @@ function Dashboard() {
   const liveDataRef = useRef(liveData);
 
   useEffect(() => {
-    const fetchSymbols = async () => {
+    const loadInitialData = async () => {
       setSymbolsStatus("loading");
+      setWatchlistStatus("loading");
       setSymbolsError("");
+      setWatchlistError("");
 
       try {
-        const response = await api.get("/symbols");
-        setSymbols(response.data.data);
+        const [symbolsResponse, watchlistResponse] = await Promise.all([
+          api.get("/symbols"),
+          fetchWatchlist()
+        ]);
+
+        const savedWatchlist = Array.isArray(watchlistResponse.data.data)
+          ? watchlistResponse.data.data
+          : [];
+
+        setSymbols(symbolsResponse.data.data);
+        setWatchlist(savedWatchlist);
+        watchlistRef.current = savedWatchlist;
         setSymbolsStatus("success");
+        setWatchlistStatus("success");
+
+        if (socket.connected && savedWatchlist.length > 0) {
+          socket.emit("subscribe", savedWatchlist);
+        }
       } catch (error) {
-        console.log("Failed to fetch symbols", error);
+        console.log("Failed to load initial data", error);
         setSymbolsStatus("error");
+        setWatchlistStatus("error");
         setSymbolsError("Could not load symbols. Check the backend server.");
+        setWatchlistError("Could not load saved watchlist from the backend.");
       }
     };
 
-    fetchSymbols();
+    loadInitialData();
   }, []);
 
   useEffect(() => {
@@ -159,7 +170,6 @@ function Dashboard() {
 
   useEffect(() => {
     watchlistRef.current = watchlist;
-    localStorage.setItem("watchlist", JSON.stringify(watchlist));
 
     if (socket.connected && watchlist.length > 0) {
       socket.emit("subscribe", watchlist);
@@ -171,17 +181,39 @@ function Dashboard() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const handleAddSymbol = (symbol) => {
+  const persistWatchlist = async (nextWatchlist, previousWatchlist) => {
+    try {
+      setWatchlistError("");
+      const response = await saveWatchlist(nextWatchlist);
+      const savedWatchlist = Array.isArray(response.data.data)
+        ? response.data.data
+        : nextWatchlist;
+
+      setWatchlist(savedWatchlist);
+      watchlistRef.current = savedWatchlist;
+      setWatchlistStatus("success");
+    } catch (error) {
+      console.log("Failed to save watchlist", error);
+      setWatchlist(previousWatchlist);
+      watchlistRef.current = previousWatchlist;
+      setWatchlistStatus("error");
+      setWatchlistError("Could not save watchlist. Try again.");
+    }
+  };
+
+  const handleAddSymbol = async (symbol) => {
     if (!symbol) return;
 
     if (!watchlist.includes(symbol)) {
       const updatedWatchlist = [...watchlist, symbol];
       setWatchlist(updatedWatchlist);
+      await persistWatchlist(updatedWatchlist, watchlist);
     }
   };
 
-  const handleRemoveSymbol = (symbol) => {
+  const handleRemoveSymbol = async (symbol) => {
     const updatedWatchlist = watchlist.filter((item) => item !== symbol);
+    const previousWatchlist = watchlist;
 
     setWatchlist(updatedWatchlist);
     setLiveData((prev) => {
@@ -198,6 +230,8 @@ function Dashboard() {
     if (selectedSymbol === symbol) {
       handleBackToWatchlist();
     }
+
+    await persistWatchlist(updatedWatchlist, previousWatchlist);
   };
 
   const handleSetPriceAlert = (symbol, target) => {
@@ -291,6 +325,8 @@ function Dashboard() {
           <Watchlist
             watchlist={watchlist}
             liveData={liveData}
+            status={watchlistStatus}
+            errorMessage={watchlistError}
             onSelectSymbol={handleSelectSymbol}
             onRemoveSymbol={handleRemoveSymbol}
           />

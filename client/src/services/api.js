@@ -11,4 +11,12 @@ export const fetchHistoricalData = (payload) => {
   return api.post("/historical", payload);
 };
 
+export const fetchWatchlist = () => {
+  return api.get("/watchlist");
+};
+
+export const saveWatchlist = (symbols) => {
+  return api.put("/watchlist", { symbols });
+};
+
 export default api;
