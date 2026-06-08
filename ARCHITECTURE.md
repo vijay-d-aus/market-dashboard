@@ -94,6 +94,10 @@ The backend also handles upstream ticker reconnects. If the remote ticker connec
 
 Price alerts are frontend-only in this demo. `Dashboard.jsx` stores alert targets by symbol and checks each incoming tick against the previous `CLOSE` value. When the latest `CLOSE` crosses the target in either direction, the alert is marked as triggered and a dismissible in-app notification is shown.
 
+## Tests
+
+Backend tests use Node's built-in test runner. They call the market controllers directly with mocked responses and mocked service failures to cover request validation and proxy error handling without hitting the remote mock API.
+
 ## Known Constraints
 
 - Watchlist storage is durable but local to one SQLite database, not scoped per user.

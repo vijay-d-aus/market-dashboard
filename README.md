@@ -21,6 +21,7 @@ A React + Node.js market dashboard for tracking NSE symbols with live ticks, det
 - 5-point moving average overlay on charts
 - Simple per-symbol price alerts with in-app notifications
 - Polished loading, empty, error, and connection states
+- Backend tests for validation and proxy error handling
 
 ## Tech Stack
 
@@ -245,6 +246,13 @@ node --check server/src/services/marketService.js
 node --check server/src/services/watchlistStore.js
 ```
 
+Backend tests:
+
+```bash
+cd server
+npm test
+```
+
 Historical endpoint smoke test:
 
 ```bash
@@ -282,7 +290,6 @@ curl -s http://localhost:5050/api/watchlist
 
 ## With More Time I Would
 
-- Add automated backend tests for validation and proxy error handling.
 - Add frontend tests for persistence, reconnect handling, and chart mode switching.
 - Add persistent/backend-backed alerts with alert history and delivery status.
 
