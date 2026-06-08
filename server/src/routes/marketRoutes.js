@@ -5,7 +5,9 @@ const {
   getIntradayData,
   getHistoricalData,
   getWatchlist,
-  updateWatchlist
+  updateWatchlist,
+  getAlerts,
+  createAlert
 } = require("../controllers/marketController");
 
 const router = express.Router();
@@ -15,5 +17,7 @@ router.post("/intraday", getIntradayData);
 router.post("/historical", getHistoricalData);
 router.get("/watchlist", getWatchlist);
 router.put("/watchlist", updateWatchlist);
+router.get("/alerts", getAlerts);
+router.post("/alerts", createAlert);
 
 module.exports = router;

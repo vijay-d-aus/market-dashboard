@@ -19,7 +19,7 @@ vi.mock("./StockChart", () => ({
   )
 }));
 
-const renderStockDetail = () => {
+const renderStockDetail = (props = {}) => {
   return render(
     <StockDetail
       symbol="RELIANCE"
@@ -32,9 +32,10 @@ const renderStockDetail = () => {
           price: 1435.7
         }
       ]}
-      priceAlert={null}
       onBack={vi.fn()}
       onSetPriceAlert={vi.fn()}
+      priceAlerts={[]}
+      {...props}
     />
   );
 };
@@ -107,5 +108,42 @@ describe("StockDetail", () => {
       screen.getByText("Start date cannot be after end date.")
     ).toBeInTheDocument();
     expect(fetchHistoricalData).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders alert history and submits a backend-backed alert", async () => {
+    const user = userEvent.setup();
+    const onSetPriceAlert = vi.fn();
+
+    renderStockDetail({
+      onSetPriceAlert,
+      priceAlerts: [
+        {
+          id: 1,
+          target: 1435,
+          status: "triggered",
+          delivery_status: "delivered",
+          triggered_price: 1436,
+          created_at: "2026-06-08 10:00:00",
+          history: [
+            {
+              id: 1,
+              event_type: "triggered",
+              price: 1436,
+              delivery_status: "pending"
+            }
+          ]
+        }
+      ]
+    });
+
+    expect(screen.getByText("Alert history")).toBeInTheDocument();
+    expect(screen.getByText("Delivery")).toBeInTheDocument();
+    expect(screen.getByText("delivered")).toBeInTheDocument();
+    expect(screen.getByText("triggered at 1436 (pending)")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Price alert"), "1440");
+    await user.click(screen.getByRole("button", { name: "Set alert" }));
+
+    expect(onSetPriceAlert).toHaveBeenCalledWith("RELIANCE", 1440);
   });
 });

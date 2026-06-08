@@ -70,7 +70,8 @@ function StockDetail({
   symbol,
   tick,
   chartData,
-  priceAlert,
+  priceAlerts = [],
+  alertError,
   onSetPriceAlert,
   onBack
 }) {
@@ -247,13 +248,54 @@ function StockDetail({
           />
           <button type="submit">Set alert</button>
         </div>
-        {priceAlert && (
-          <p className="price-alert-form__status">
-            Alert at {priceAlert.target}
-            {priceAlert.triggered ? " triggered" : " waiting"}
-          </p>
+        {alertError && (
+          <p className="price-alert-form__status is-error">{alertError}</p>
         )}
       </form>
+
+      <section className="price-alert-history">
+        <h3>Alert history</h3>
+        {priceAlerts.length === 0 ? (
+          <p className="state-message">No alerts set for {symbol}.</p>
+        ) : (
+          <div className="price-alert-history__list">
+            {priceAlerts.map((alert) => (
+              <article className="price-alert-history__item" key={alert.id}>
+                <div>
+                  <strong>Target {alert.target}</strong>
+                  <span>{alert.status}</span>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Delivery</dt>
+                    <dd>{alert.delivery_status}</dd>
+                  </div>
+                  <div>
+                    <dt>Triggered price</dt>
+                    <dd>{alert.triggered_price || "Waiting"}</dd>
+                  </div>
+                  <div>
+                    <dt>Created</dt>
+                    <dd>{alert.created_at}</dd>
+                  </div>
+                </dl>
+                {alert.history?.length > 0 && (
+                  <ul>
+                    {alert.history.slice(0, 3).map((event) => (
+                      <li key={event.id}>
+                        {event.event_type} {event.price ? `at ${event.price}` : ""}
+                        {event.delivery_status
+                          ? ` (${event.delivery_status})`
+                          : ""}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       {isHistorical && (
         <form className="historical-range-form" onSubmit={handleHistoricalSubmit}>

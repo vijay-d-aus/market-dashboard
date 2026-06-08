@@ -3,11 +3,15 @@ const { beforeEach, describe, it } = require("node:test");
 
 const marketController = require("../src/controllers/marketController");
 const marketService = require("../src/services/marketService");
+const alertStore = require("../src/services/alertStore");
 
 const originalMarketService = {
   fetchSymbols: marketService.fetchSymbols,
   fetchIntradayData: marketService.fetchIntradayData,
   fetchHistoricalData: marketService.fetchHistoricalData
+};
+const originalAlertStore = {
+  createAlert: alertStore.createAlert
 };
 
 const createResponse = () => {
@@ -38,6 +42,7 @@ describe("market controller validation and proxy errors", () => {
     marketService.fetchSymbols = originalMarketService.fetchSymbols;
     marketService.fetchIntradayData = originalMarketService.fetchIntradayData;
     marketService.fetchHistoricalData = originalMarketService.fetchHistoricalData;
+    alertStore.createAlert = originalAlertStore.createAlert;
   });
 
   it("rejects intraday requests without a symbol", async () => {
@@ -179,6 +184,48 @@ describe("market controller validation and proxy errors", () => {
     assert.deepEqual(response.body, {
       success: false,
       message: "Failed to fetch symbols"
+    });
+  });
+
+  it("rejects alert creation without a symbol", async () => {
+    const response = await callController(marketController.createAlert, {
+      target: 1435
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.body, {
+      success: false,
+      message: "Symbol is required"
+    });
+  });
+
+  it("rejects alert creation with an invalid target", async () => {
+    const response = await callController(marketController.createAlert, {
+      symbol: "RELIANCE",
+      target: 0
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.body, {
+      success: false,
+      message: "Target must be a positive number"
+    });
+  });
+
+  it("returns a clean alert creation error when storage fails", async () => {
+    alertStore.createAlert = () => {
+      throw new Error("sqlite failed");
+    };
+
+    const response = await callController(marketController.createAlert, {
+      symbol: "RELIANCE",
+      target: 1435
+    });
+
+    assert.equal(response.statusCode, 500);
+    assert.deepEqual(response.body, {
+      success: false,
+      message: "Failed to create alert"
     });
   });
 });

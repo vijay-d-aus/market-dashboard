@@ -4,6 +4,7 @@ require("dotenv").config();
 
 const app = require("./app");
 const tickerClient = require("./socket/tickerClient");
+const alertStore = require("./services/alertStore");
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -14,6 +15,7 @@ const io = new Server(server, {
 
 const socketSubscriptions = new Map();
 const upstreamSubscriptions = new Set();
+const latestPrices = new Map();
 
 const normalizeSymbols = (symbols) => {
   const seen = new Set();
@@ -126,6 +128,8 @@ tickerClient.on("ticker", (tick) => {
   }
 
   const symbol = String(tick.SYMBOL).trim().toUpperCase();
+  const currentPrice = Number(tick.CLOSE ?? tick.LTP);
+  const previousPrice = latestPrices.has(symbol) ? latestPrices.get(symbol) : null;
   let deliveredCount = 0;
 
   socketSubscriptions.forEach((subscriptions, socketId) => {
@@ -143,6 +147,42 @@ tickerClient.on("ticker", (tick) => {
     deliveredCount,
     "client(s)"
   );
+
+  const triggeredAlerts = alertStore.triggerCrossedAlerts({
+    symbol,
+    previousPrice,
+    currentPrice
+  });
+  const deliveredAlertIds = [];
+
+  triggeredAlerts.forEach((alert) => {
+    let alertDeliveredCount = 0;
+
+    socketSubscriptions.forEach((subscriptions, socketId) => {
+      if (!subscriptions.has(symbol)) return;
+
+      io.to(socketId).emit("price_alert", alert);
+      alertDeliveredCount += 1;
+    });
+
+    if (alertDeliveredCount > 0) {
+      deliveredAlertIds.push(alert.id);
+    }
+  });
+
+  if (deliveredAlertIds.length > 0) {
+    const deliveredAlerts = alertStore.markAlertsDelivered(deliveredAlertIds);
+
+    deliveredAlerts.forEach((alert) => {
+      socketSubscriptions.forEach((subscriptions, socketId) => {
+        if (!subscriptions.has(symbol)) return;
+
+        io.to(socketId).emit("price_alert_updated", alert);
+      });
+    });
+  }
+
+  latestPrices.set(symbol, currentPrice);
 });
 
 const PORT = process.env.PORT || 5050;

@@ -4,13 +4,20 @@ import { act } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Dashboard from "./Dashboard";
-import api, { fetchWatchlist, saveWatchlist } from "../services/api";
+import api, {
+  createPriceAlert,
+  fetchAlerts,
+  fetchWatchlist,
+  saveWatchlist
+} from "../services/api";
 import socket from "../services/socket";
 
 vi.mock("../services/api", () => ({
   default: {
     get: vi.fn()
   },
+  createPriceAlert: vi.fn(),
+  fetchAlerts: vi.fn(),
   fetchWatchlist: vi.fn(),
   saveWatchlist: vi.fn()
 }));
@@ -50,6 +57,23 @@ const setupInitialData = (watchlist = ["RELIANCE"]) => {
   fetchWatchlist.mockResolvedValue({
     data: {
       data: watchlist
+    }
+  });
+  fetchAlerts.mockResolvedValue({
+    data: {
+      data: []
+    }
+  });
+  createPriceAlert.mockResolvedValue({
+    data: {
+      data: {
+        id: 1,
+        symbol: "RELIANCE",
+        target: 1435,
+        status: "active",
+        delivery_status: "pending",
+        history: []
+      }
     }
   });
   saveWatchlist.mockImplementation((symbols) => {
@@ -101,5 +125,31 @@ describe("Dashboard", () => {
 
     expect(socket.emit).toHaveBeenCalledWith("subscribe", ["RELIANCE", "TCS"]);
     expect(screen.getByText("Connected")).toBeInTheDocument();
+  });
+
+  it("shows backend alert notifications from socket events", async () => {
+    const handlers = {};
+    socket.on.mockImplementation((event, handler) => {
+      handlers[event] = handler;
+    });
+    setupInitialData(["RELIANCE"]);
+
+    render(<Dashboard />);
+
+    expect(await screen.findByText("RELIANCE")).toBeInTheDocument();
+
+    act(() => {
+      handlers.price_alert({
+        id: 1,
+        symbol: "RELIANCE",
+        target: 1435,
+        triggered_price: 1436,
+        delivery_status: "pending",
+        history: []
+      });
+    });
+
+    expect(screen.getByText("RELIANCE alert triggered")).toBeInTheDocument();
+    expect(screen.getByText("Delivery: pending")).toBeInTheDocument();
   });
 });

@@ -36,7 +36,7 @@ Key responsibilities:
 - `Historical`: calls `POST /api/historical`
 - Validates user-selected historical start/end dates before calling the backend
 - Caches historical chart points in `localStorage` using symbol/date/limit/offset as the key
-- Provides a per-symbol target price alert input
+- Provides a per-symbol target price alert input and alert history
 
 `StockChart.jsx` renders the Recharts chart. It plots:
 
@@ -63,6 +63,8 @@ It calls through `cacheStore.js` for cacheable symbol-list and historical respon
 `cacheStore.js` uses Node's built-in SQLite module to store cache entries in `server/data/market-dashboard.sqlite`. Each cache row stores a key, serialized JSON response, and expiry timestamp.
 
 `watchlistStore.js` uses Node's built-in SQLite module to store watchlist symbols and their positions in `server/data/market-dashboard.sqlite`. Incoming watchlists are normalized to uppercase, deduplicated, and written inside a transaction.
+
+`alertStore.js` stores price-alert definitions and history in the same SQLite database. Alert rows track active/triggered status, delivery status, target price, triggered price, and timestamps. History rows record created, triggered, and delivered events.
 
 `tickerClient.js` connects to the remote Socket.IO source. The backend tracks requested symbols per frontend socket, keeps the remote ticker subscribed to the aggregate set of requested symbols, and sends each received `ticker` event only to clients that subscribed to that symbol.
 
@@ -92,13 +94,13 @@ The backend also handles upstream ticker reconnects. If the remote ticker connec
 
 ## Price Alerts
 
-Price alerts are frontend-only in this demo. `Dashboard.jsx` stores alert targets by symbol and checks each incoming tick against the previous `CLOSE` value. When the latest `CLOSE` crosses the target in either direction, the alert is marked as triggered and a dismissible in-app notification is shown.
+Price alerts are backend-backed. `Dashboard.jsx` loads saved alerts from `GET /api/alerts` and creates new alerts through `POST /api/alerts`. The backend checks active alerts as live ticks arrive. When the latest `CLOSE` crosses the target in either direction, the alert is marked as triggered, an event is written to history, and subscribed frontend clients receive a `price_alert` socket event. If at least one client receives the event, the backend marks the alert delivery status as `delivered` and emits `price_alert_updated`.
 
 ## Tests
 
 Backend tests use Node's built-in test runner. They call the market controllers directly with mocked responses and mocked service failures to cover request validation and proxy error handling without hitting the remote mock API.
 
-Frontend tests use Vitest, jsdom, and Testing Library. They mock the backend API, socket client, and chart renderer to cover watchlist persistence, reconnect resubscribe behavior, and Intraday/Historical mode switching.
+Frontend tests use Vitest, jsdom, and Testing Library. They mock the backend API, socket client, and chart renderer to cover watchlist persistence, reconnect resubscribe behavior, alert notifications, alert history, and Intraday/Historical mode switching.
 
 ## Known Constraints
 

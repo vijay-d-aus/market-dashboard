@@ -19,4 +19,12 @@ export const saveWatchlist = (symbols) => {
   return api.put("/watchlist", { symbols });
 };
 
+export const fetchAlerts = () => {
+  return api.get("/alerts");
+};
+
+export const createPriceAlert = (payload) => {
+  return api.post("/alerts", payload);
+};
+
 export default api;

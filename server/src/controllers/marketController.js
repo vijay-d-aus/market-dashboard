@@ -1,5 +1,6 @@
 const marketService = require("../services/marketService");
 const watchlistStore = require("../services/watchlistStore");
+const alertStore = require("../services/alertStore");
 
 const normalizePagination = ({ limit = 100, offset = 0 }) => {
   const parsedLimit = Number(limit);
@@ -222,10 +223,67 @@ const updateWatchlist = (req, res) => {
   }
 };
 
+const getAlerts = (req, res) => {
+  try {
+    res.status(200).json({
+      success: true,
+      data: alertStore.listAlerts()
+    });
+  } catch (error) {
+    console.log("Alerts read error:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to load alerts"
+    });
+  }
+};
+
+const createAlert = (req, res) => {
+  try {
+    const { symbol, target } = req.body || {};
+    const normalizedSymbol = String(symbol || "").trim().toUpperCase();
+    const parsedTarget = Number(target);
+
+    if (!normalizedSymbol) {
+      return res.status(400).json({
+        success: false,
+        message: "Symbol is required"
+      });
+    }
+
+    if (!Number.isFinite(parsedTarget) || parsedTarget <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Target must be a positive number"
+      });
+    }
+
+    const data = alertStore.createAlert({
+      symbol: normalizedSymbol,
+      target: parsedTarget
+    });
+
+    res.status(201).json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.log("Alert create error:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to create alert"
+    });
+  }
+};
+
 module.exports = {
   getSymbols,
   getIntradayData,
   getHistoricalData,
   getWatchlist,
-  updateWatchlist
+  updateWatchlist,
+  getAlerts,
+  createAlert
 };

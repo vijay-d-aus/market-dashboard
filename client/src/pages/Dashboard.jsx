@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import api from "../services/api";
-import { fetchWatchlist, saveWatchlist } from "../services/api";
+import {
+  createPriceAlert,
+  fetchAlerts,
+  fetchWatchlist,
+  saveWatchlist
+} from "../services/api";
 import socket from "../services/socket";
 import SearchBar from "../components/SearchBar";
 import Watchlist from "../components/Watchlist";
@@ -15,17 +20,6 @@ const getStoredTheme = () => {
   return localStorage.getItem("theme") === "dark" ? "dark" : "light";
 };
 
-const hasCrossedTarget = (previousPrice, currentPrice, targetPrice) => {
-  if (!previousPrice) {
-    return currentPrice === targetPrice;
-  }
-
-  return (
-    (previousPrice < targetPrice && currentPrice >= targetPrice) ||
-    (previousPrice > targetPrice && currentPrice <= targetPrice)
-  );
-};
-
 function Dashboard() {
   const [symbols, setSymbols] = useState([]);
   const [symbolsStatus, setSymbolsStatus] = useState("loading");
@@ -38,7 +32,8 @@ function Dashboard() {
   const [selectedSymbol, setSelectedSymbol] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [theme, setTheme] = useState(getStoredTheme);
-  const [priceAlerts, setPriceAlerts] = useState({});
+  const [priceAlerts, setPriceAlerts] = useState([]);
+  const [alertError, setAlertError] = useState("");
   const [notification, setNotification] = useState(null);
   const selectedSymbolRef = useRef(null);
   const watchlistRef = useRef(watchlist);
@@ -52,17 +47,22 @@ function Dashboard() {
       setWatchlistError("");
 
       try {
-        const [symbolsResponse, watchlistResponse] = await Promise.all([
+        const [symbolsResponse, watchlistResponse, alertsResponse] = await Promise.all([
           api.get("/symbols"),
-          fetchWatchlist()
+          fetchWatchlist(),
+          fetchAlerts()
         ]);
 
         const savedWatchlist = Array.isArray(watchlistResponse.data.data)
           ? watchlistResponse.data.data
           : [];
+        const savedAlerts = Array.isArray(alertsResponse.data.data)
+          ? alertsResponse.data.data
+          : [];
 
         setSymbols(symbolsResponse.data.data);
         setWatchlist(savedWatchlist);
+        setPriceAlerts(savedAlerts);
         watchlistRef.current = savedWatchlist;
         setSymbolsStatus("success");
         setWatchlistStatus("success");
@@ -76,6 +76,7 @@ function Dashboard() {
         setWatchlistStatus("error");
         setSymbolsError("Could not load symbols. Check the backend server.");
         setWatchlistError("Could not load saved watchlist from the backend.");
+        setAlertError("Could not load saved alerts from the backend.");
       }
     };
 
@@ -105,11 +106,6 @@ function Dashboard() {
         return;
       }
 
-      const previousPrice = liveDataRef.current[tick.SYMBOL]
-        ? Number(liveDataRef.current[tick.SYMBOL].CLOSE ?? liveDataRef.current[tick.SYMBOL].LTP)
-        : null;
-      const currentPrice = price;
-
       setLiveData((prev) => {
         const next = {
           ...prev,
@@ -118,32 +114,6 @@ function Dashboard() {
 
         liveDataRef.current = next;
         return next;
-      });
-
-      setPriceAlerts((prev) => {
-        const alert = prev[tick.SYMBOL];
-
-        if (!alert || alert.triggered) {
-          return prev;
-        }
-
-        if (!hasCrossedTarget(previousPrice, currentPrice, alert.target)) {
-          return prev;
-        }
-
-        setNotification({
-          symbol: tick.SYMBOL,
-          target: alert.target,
-          price: currentPrice
-        });
-
-        return {
-          ...prev,
-          [tick.SYMBOL]: {
-            ...alert,
-            triggered: true
-          }
-        };
       });
 
       setChartData((prev) => {
@@ -160,10 +130,44 @@ function Dashboard() {
       });
     });
 
+    socket.on("price_alert", (alert) => {
+      setNotification({
+        id: alert.id,
+        symbol: alert.symbol,
+        target: alert.target,
+        price: alert.triggered_price,
+        deliveryStatus: alert.delivery_status
+      });
+
+      setPriceAlerts((prev) => {
+        const withoutAlert = prev.filter((item) => item.id !== alert.id);
+        return [alert, ...withoutAlert];
+      });
+    });
+
+    socket.on("price_alert_updated", (alert) => {
+      setNotification((prev) => {
+        if (!prev || prev.id !== alert.id) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          deliveryStatus: alert.delivery_status
+        };
+      });
+
+      setPriceAlerts((prev) => {
+        return prev.map((item) => (item.id === alert.id ? alert : item));
+      });
+    });
+
     return () => {
       socket.off("connect");
       socket.off("disconnect");
       socket.off("ticker");
+      socket.off("price_alert");
+      socket.off("price_alert_updated");
       socket.disconnect();
     };
   }, []);
@@ -256,16 +260,18 @@ function Dashboard() {
     await persistWatchlist(updatedWatchlist, watchlist);
   };
 
-  const handleSetPriceAlert = (symbol, target) => {
-    setPriceAlerts((prev) => ({
-      ...prev,
-      [symbol]: {
-        target,
-        triggered: false
-      }
-    }));
+  const handleSetPriceAlert = async (symbol, target) => {
+    try {
+      setAlertError("");
+      const response = await createPriceAlert({ symbol, target });
+      const alert = response.data.data;
 
-    setNotification(null);
+      setPriceAlerts((prev) => [alert, ...prev]);
+      setNotification(null);
+    } catch (error) {
+      console.log("Failed to create alert", error);
+      setAlertError("Could not save price alert. Try again.");
+    }
   };
 
   const handleSelectSymbol = (symbol) => {
@@ -281,6 +287,9 @@ function Dashboard() {
   };
 
   const selectedTick = selectedSymbol ? liveData[selectedSymbol] : null;
+  const selectedAlerts = selectedSymbol
+    ? priceAlerts.filter((alert) => alert.symbol === selectedSymbol)
+    : [];
   const nextTheme = theme === "dark" ? "light" : "dark";
 
   return (
@@ -318,6 +327,7 @@ function Dashboard() {
             <p>
               Target {notification.target} crossed at {notification.price}.
             </p>
+            <p>Delivery: {notification.deliveryStatus || "pending"}</p>
           </div>
           <button type="button" onClick={() => setNotification(null)}>
             Dismiss
@@ -331,7 +341,8 @@ function Dashboard() {
           symbol={selectedSymbol}
           tick={selectedTick}
           chartData={chartData}
-          priceAlert={priceAlerts[selectedSymbol]}
+          priceAlerts={selectedAlerts}
+          alertError={alertError}
           onSetPriceAlert={handleSetPriceAlert}
           onBack={handleBackToWatchlist}
         />

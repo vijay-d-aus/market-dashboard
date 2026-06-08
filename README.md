@@ -19,7 +19,7 @@ A React + Node.js market dashboard for tracking NSE symbols with live ticks, det
 - Per-client websocket subscriptions so clients only receive requested symbols
 - Light/dark theme toggle
 - 5-point moving average overlay on charts
-- Simple per-symbol price alerts with in-app notifications
+- Backend-backed price alerts with history, delivery status, and in-app notifications
 - Polished loading, empty, error, and connection states
 - Backend tests for validation and proxy error handling
 - Frontend tests for persistence, reconnect handling, and chart mode switching
@@ -112,6 +112,7 @@ If the backend fails with `EADDRINUSE`, another process is already using port `5
 9. Point out the dashed `MA 5` moving-average overlay.
 10. Toggle light/dark mode from the header.
 11. Set a target price alert on a symbol detail page and wait for a live `CLOSE` crossing notification.
+12. Confirm the alert history shows created, triggered, and delivered states.
 
 ## Architecture Overview
 
@@ -137,7 +138,7 @@ Main frontend flow:
 - Removed symbols emit `unsubscribe` so the backend can forward the unsubscribe request to the ticker source.
 - Up/down reorder actions save the new watchlist order through `PUT /api/watchlist`.
 - `StockDetail.jsx` owns the Intraday / Historical toggle, validates historical date ranges, and loads historical chart data.
-- `StockDetail.jsx` also contains the price-alert input for the selected symbol.
+- `StockDetail.jsx` contains the price-alert input and alert history for the selected symbol.
 - `StockChart.jsx` renders the `CLOSE` price line and the `MA 5` moving-average overlay using Recharts.
 
 Main backend flow:
@@ -149,8 +150,10 @@ Main backend flow:
 - `marketService.js` calls through `cacheStore.js` for cacheable REST responses.
 - `cacheStore.js` stores symbol-list and historical responses in SQLite for 5 minutes.
 - `watchlistStore.js` stores the watchlist in `server/data/market-dashboard.sqlite`.
+- `alertStore.js` stores price alerts and alert history in `server/data/market-dashboard.sqlite`.
 - `server.js` tracks requested symbols per connected frontend socket and sends each tick only to matching clients.
 - `tickerClient.js` connects to the remote ticker socket and keeps the upstream ticker subscribed to the aggregate set of requested symbols.
+- `server.js` evaluates active alerts on incoming ticks, marks triggered alerts, emits alert notifications to subscribed clients, and records delivery status.
 
 ## API Endpoints
 
@@ -204,6 +207,23 @@ Request:
 
 The backend normalizes symbols to uppercase, removes duplicates, and stores the ordered list durably in `server/data/market-dashboard.sqlite`.
 
+### `GET /api/alerts`
+
+Returns saved price alerts with their history.
+
+### `POST /api/alerts`
+
+Request:
+
+```json
+{
+  "symbol": "RELIANCE",
+  "target": 1435
+}
+```
+
+The backend stores the alert as `active` with `pending` delivery status. When a live tick crosses the target, the backend marks it `triggered`, records history, emits an in-app notification, and marks it `delivered` if at least one subscribed client receives the event.
+
 ## API Inconsistencies And Handling
 
 During mock API exploration I found a few differences between the documentation and actual behavior:
@@ -225,6 +245,7 @@ Handling choices:
 - Per-client subscription tracking prevents one browser from receiving another browser's symbols.
 - Symbol list and historical responses are cached in the backend SQLite cache table to avoid repeatedly hitting the mock API during demos.
 - The watchlist is stored behind backend APIs so it survives frontend refreshes and backend restarts.
+- Price alerts are stored behind backend APIs so alert history survives frontend refreshes and backend restarts.
 
 ## Verification
 
@@ -292,7 +313,7 @@ curl -s http://localhost:5050/api/watchlist
 
 ## With More Time I Would
 
-- Add persistent/backend-backed alerts with alert history and delivery status.
+- Add user accounts so watchlists and alerts are isolated per person.
 
 ## Notes
 
