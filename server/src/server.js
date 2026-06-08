@@ -28,8 +28,60 @@ app.get("/", (req, res) => {
 
 app.use("/api", marketRoutes);
 
+const socketSubscriptions = new Map();
+const upstreamSubscriptions = new Set();
+
+const normalizeSymbols = (symbols) => {
+  const seen = new Set();
+  const normalized = [];
+
+  symbols.forEach((symbol) => {
+    const value = String(symbol || "").trim().toUpperCase();
+
+    if (value && !seen.has(value)) {
+      seen.add(value);
+      normalized.push(value);
+    }
+  });
+
+  return normalized;
+};
+
+const hasSubscribersForSymbol = (symbol) => {
+  for (const subscriptions of socketSubscriptions.values()) {
+    if (subscriptions.has(symbol)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const subscribeUpstream = (symbols) => {
+  const newSymbols = symbols.filter((symbol) => {
+    return !upstreamSubscriptions.has(symbol);
+  });
+
+  if (newSymbols.length === 0) return;
+
+  newSymbols.forEach((symbol) => upstreamSubscriptions.add(symbol));
+  tickerClient.emit("subscribe", newSymbols);
+};
+
+const unsubscribeUpstream = (symbols) => {
+  const unusedSymbols = symbols.filter((symbol) => {
+    return upstreamSubscriptions.has(symbol) && !hasSubscribersForSymbol(symbol);
+  });
+
+  if (unusedSymbols.length === 0) return;
+
+  unusedSymbols.forEach((symbol) => upstreamSubscriptions.delete(symbol));
+  tickerClient.emit("unsubscribe", unusedSymbols);
+};
+
 io.on("connection", (frontendSocket) => {
   console.log("Frontend connected:", frontendSocket.id);
+  socketSubscriptions.set(frontendSocket.id, new Set());
 
   frontendSocket.on("subscribe", (symbols) => {
     if (!Array.isArray(symbols)) {
@@ -39,8 +91,13 @@ io.on("connection", (frontendSocket) => {
       return;
     }
 
-    console.log("Frontend subscribed:", symbols);
-    tickerClient.emit("subscribe", symbols);
+    const normalizedSymbols = normalizeSymbols(symbols);
+    const subscriptions = socketSubscriptions.get(frontendSocket.id);
+
+    normalizedSymbols.forEach((symbol) => subscriptions.add(symbol));
+    subscribeUpstream(normalizedSymbols);
+
+    console.log("Frontend subscribed:", frontendSocket.id, normalizedSymbols);
   });
 
   frontendSocket.on("unsubscribe", (symbols) => {
@@ -51,13 +108,31 @@ io.on("connection", (frontendSocket) => {
       return;
     }
 
-    console.log("Frontend unsubscribed:", symbols);
-    tickerClient.emit("unsubscribe", symbols);
+    const normalizedSymbols = normalizeSymbols(symbols);
+    const subscriptions = socketSubscriptions.get(frontendSocket.id);
+
+    normalizedSymbols.forEach((symbol) => subscriptions.delete(symbol));
+    unsubscribeUpstream(normalizedSymbols);
+
+    console.log("Frontend unsubscribed:", frontendSocket.id, normalizedSymbols);
   });
 
   frontendSocket.on("disconnect", () => {
+    const subscriptions = socketSubscriptions.get(frontendSocket.id) || new Set();
+
+    socketSubscriptions.delete(frontendSocket.id);
+    unsubscribeUpstream([...subscriptions]);
+
     console.log("Frontend disconnected:", frontendSocket.id);
   });
+});
+
+tickerClient.on("connect", () => {
+  const symbols = [...upstreamSubscriptions];
+
+  if (symbols.length > 0) {
+    tickerClient.emit("subscribe", symbols);
+  }
 });
 
 tickerClient.on("ticker", (tick) => {
@@ -66,9 +141,24 @@ tickerClient.on("ticker", (tick) => {
     return;
   }
 
-  console.log("Tick received:", tick.SYMBOL, tick.CLOSE ?? tick.LTP);
+  const symbol = String(tick.SYMBOL).trim().toUpperCase();
+  let deliveredCount = 0;
 
-  io.emit("ticker", tick);
+  socketSubscriptions.forEach((subscriptions, socketId) => {
+    if (!subscriptions.has(symbol)) return;
+
+    io.to(socketId).emit("ticker", tick);
+    deliveredCount += 1;
+  });
+
+  console.log(
+    "Tick received:",
+    symbol,
+    tick.CLOSE ?? tick.LTP,
+    "delivered to",
+    deliveredCount,
+    "client(s)"
+  );
 });
 
 const PORT = process.env.PORT || 5050;

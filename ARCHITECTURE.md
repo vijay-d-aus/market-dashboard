@@ -61,7 +61,7 @@ It also keeps a small in-memory cache for symbol-list and historical responses w
 
 `watchlistStore.js` uses Node's built-in SQLite module to store watchlist symbols and their positions in `server/data/market-dashboard.sqlite`. Incoming watchlists are normalized to uppercase, deduplicated, and written inside a transaction.
 
-`tickerClient.js` connects to the remote Socket.IO source. The backend forwards frontend `subscribe` events to the remote ticker and broadcasts received `ticker` events back to all frontend clients.
+`tickerClient.js` connects to the remote Socket.IO source. The backend tracks requested symbols per frontend socket, keeps the remote ticker subscribed to the aggregate set of requested symbols, and sends each received `ticker` event only to clients that subscribed to that symbol.
 
 ## Persistence And Caching
 
@@ -85,6 +85,8 @@ The cache reduces repeated mock API calls during demos, but it is not durable an
 
 Socket reconnects are handled in `Dashboard.jsx`. On `connect`, the app reads the latest watchlist from a ref and emits `subscribe` again. This keeps live ticks working after browser reloads, backend restarts, or transient socket disconnects.
 
+The backend also handles upstream ticker reconnects. If the remote ticker connection comes back while frontend clients are still connected, the backend resubscribes the aggregate symbol set upstream.
+
 ## Price Alerts
 
 Price alerts are frontend-only in this demo. `Dashboard.jsx` stores alert targets by symbol and checks each incoming tick against the previous `CLOSE` value. When the latest `CLOSE` crosses the target in either direction, the alert is marked as triggered and a dismissible in-app notification is shown.
@@ -93,5 +95,4 @@ Price alerts are frontend-only in this demo. `Dashboard.jsx` stores alert target
 
 - Watchlist storage is durable but local to one SQLite database, not scoped per user.
 - Historical date range is constrained by the mock API.
-- The backend currently broadcasts all received ticks to connected clients.
 - Port `5050` must be free before starting the backend.

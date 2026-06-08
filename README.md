@@ -15,6 +15,7 @@ A React + Node.js market dashboard for tracking NSE symbols with live ticks, det
 - Historical chart caching with `localStorage`
 - Backend caching for symbol list and historical responses
 - Socket reconnect handling with automatic resubscribe
+- Per-client websocket subscriptions so clients only receive requested symbols
 - Light/dark theme toggle
 - 5-point moving average overlay on charts
 - Simple per-symbol price alerts with in-app notifications
@@ -144,7 +145,8 @@ Main backend flow:
 - `marketService.js` calls the mock REST API.
 - `marketService.js` caches symbol-list and historical responses in memory for 5 minutes.
 - `watchlistStore.js` stores the watchlist in `server/data/market-dashboard.sqlite`.
-- `tickerClient.js` connects to the remote ticker socket and relays ticks through the local backend.
+- `server.js` tracks requested symbols per connected frontend socket and sends each tick only to matching clients.
+- `tickerClient.js` connects to the remote ticker socket and keeps the upstream ticker subscribed to the aggregate set of requested symbols.
 
 ## API Endpoints
 
@@ -216,6 +218,7 @@ Handling choices:
 - Request validation happens in the backend before proxying to the mock API.
 - Historical errors are surfaced as clean API responses and frontend error states.
 - Reconnect handling resubscribes the current watchlist after the Socket.IO client reconnects.
+- Per-client subscription tracking prevents one browser from receiving another browser's symbols.
 - Symbol list and historical responses are cached in the backend to avoid repeatedly hitting the mock API during demos.
 - The watchlist is stored behind backend APIs so it survives frontend refreshes and backend restarts.
 
@@ -269,7 +272,6 @@ curl -s http://localhost:5050/api/watchlist
 
 - The watchlist is persisted in a single local SQLite database, so it is durable but not multi-user isolated.
 - Historical cache is still stored in `localStorage`, so it is browser-specific.
-- The backend broadcasts received ticks to all connected frontend clients instead of tracking per-client subscriptions.
 - The live chart only keeps the latest 50 selected-symbol points in memory.
 - Historical range is hardcoded for the demo because the mock API only accepts a narrow range.
 - Backend cache is in-memory, so it resets when the server restarts.
