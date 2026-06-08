@@ -314,6 +314,11 @@ curl -s http://localhost:5050/api/watchlist
 ## With More Time I Would
 
 - Add user accounts so watchlists and alerts are isolated per person.
+- Add configurable alert rules such as above/below direction, expiry, and repeat notifications.
+- Add richer chart tools such as zoom, crosshair inspection, and selectable moving-average windows.
+- Add backend integration tests for Socket.IO subscription routing and alert delivery events.
+- Add a production-ready cache policy with manual invalidation and cache metrics.
+- Add deployment configuration with environment-specific ports, CORS, and health checks.
 
 ## Notes
 
