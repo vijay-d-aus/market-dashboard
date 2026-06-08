@@ -10,6 +10,7 @@ A React + Node.js market dashboard for tracking NSE symbols with live ticks, det
 - Reorder watchlist symbols with persisted up/down actions
 - Symbol detail screen with a live `CLOSE` price chart
 - Intraday / Historical chart toggle
+- User-configurable historical date range with validation
 - Historical data loaded through the backend API
 - Watchlist persistence with backend SQLite
 - Historical chart caching with `localStorage`
@@ -105,7 +106,7 @@ If the backend fails with `EADDRINUSE`, another process is already using port `5
 5. Move a symbol up or down, refresh, and confirm the order persists.
 6. Click `RELIANCE` to open the detail screen.
 7. Confirm the Intraday chart updates from live ticks using `CLOSE`.
-8. Toggle to Historical and confirm historical `CLOSE` data loads.
+8. Toggle to Historical, choose a valid date range, and confirm historical `CLOSE` data loads.
 9. Point out the dashed `MA 5` moving-average overlay.
 10. Toggle light/dark mode from the header.
 11. Set a target price alert on a symbol detail page and wait for a live `CLOSE` crossing notification.
@@ -133,7 +134,7 @@ Main frontend flow:
 - `Watchlist.jsx` and `WatchlistCard.jsx` render SQLite-backed watchlist symbols and latest tick values.
 - Removed symbols emit `unsubscribe` so the backend can forward the unsubscribe request to the ticker source.
 - Up/down reorder actions save the new watchlist order through `PUT /api/watchlist`.
-- `StockDetail.jsx` owns the Intraday / Historical toggle and loads historical chart data.
+- `StockDetail.jsx` owns the Intraday / Historical toggle, validates historical date ranges, and loads historical chart data.
 - `StockDetail.jsx` also contains the price-alert input for the selected symbol.
 - `StockChart.jsx` renders the `CLOSE` price line and the `MA 5` moving-average overlay using Recharts.
 
@@ -205,7 +206,7 @@ The backend normalizes symbols to uppercase, removes duplicates, and stores the 
 
 During mock API exploration I found a few differences between the documentation and actual behavior:
 
-- The historical API examples mention dates outside the range that the API accepts. The actual usable trading-day range is `2026-05-04` through `2026-05-08`, so the frontend historical demo uses that range.
+- The historical API examples mention dates outside the range that the API accepts. The actual usable trading-day range is `2026-05-04` through `2026-05-08`, so the frontend constrains the date controls to that range.
 - The WebSocket documentation mentions a local-style port, but the real remote Socket.IO source is `https://mock-data.tealvue.in`. The backend connects to that remote source and exposes a local Socket.IO server for the frontend.
 - The ticker subscription can send a burst of existing or simulated ticks before ongoing updates. The frontend treats incoming ticks as chart points for the selected symbol and caps the live chart to the latest 50 points.
 - The docs show tick price as `LTP`, while the tested mock payloads include `CLOSE`. The frontend uses `CLOSE` as requested and falls back to `LTP` if a payload only has the documented field.
@@ -275,13 +276,12 @@ curl -s http://localhost:5050/api/watchlist
 - The watchlist is persisted in a single local SQLite database, so it is durable but not multi-user isolated.
 - Historical cache is still stored in `localStorage`, so it is browser-specific.
 - The live chart only keeps the latest 50 selected-symbol points in memory.
-- Historical range is hardcoded for the demo because the mock API only accepts a narrow range.
+- Historical date controls are constrained to the mock API's narrow supported range.
 - Backend cache entries are local SQLite rows with a 5-minute TTL, so they are durable only within that local app database.
 - Port `5050` must be free before starting the backend.
 
 ## With More Time I Would
 
-- Add user-configurable historical date range controls with validation.
 - Add automated backend tests for validation and proxy error handling.
 - Add frontend tests for persistence, reconnect handling, and chart mode switching.
 - Add persistent/backend-backed alerts with alert history and delivery status.

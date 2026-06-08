@@ -34,6 +34,7 @@ Key responsibilities:
 
 - `Intraday`: uses live chart data passed from `Dashboard`
 - `Historical`: calls `POST /api/historical`
+- Validates user-selected historical start/end dates before calling the backend
 - Caches historical chart points in `localStorage` using symbol/date/limit/offset as the key
 - Provides a per-symbol target price alert input
 
@@ -96,5 +97,5 @@ Price alerts are frontend-only in this demo. `Dashboard.jsx` stores alert target
 ## Known Constraints
 
 - Watchlist storage is durable but local to one SQLite database, not scoped per user.
-- Historical date range is constrained by the mock API.
+- Historical date controls are constrained by the mock API's supported range.
 - Port `5050` must be free before starting the backend.

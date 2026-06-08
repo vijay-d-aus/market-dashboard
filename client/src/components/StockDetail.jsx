@@ -8,26 +8,29 @@ const HISTORICAL_RANGE = {
   limit: 100,
   offset: 0
 };
+const HISTORICAL_MIN_DATE = "2026-05-04";
+const HISTORICAL_MAX_DATE = "2026-05-08";
+const DATE_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
 
 const toHistoricalChartPoint = (row) => ({
   time: row.TS ? row.TS.slice(0, 16).replace("T", " ") : "",
   price: Number(row.CLOSE)
 });
 
-const getHistoricalCacheKey = (symbol) => {
+const getHistoricalCacheKey = (symbol, range) => {
   return [
     "historical",
     symbol,
-    HISTORICAL_RANGE.start_date,
-    HISTORICAL_RANGE.end_date,
-    HISTORICAL_RANGE.limit,
-    HISTORICAL_RANGE.offset
+    range.start_date,
+    range.end_date,
+    range.limit,
+    range.offset
   ].join(":");
 };
 
-const getCachedHistoricalData = (symbol) => {
+const getCachedHistoricalData = (symbol, range) => {
   try {
-    const cached = localStorage.getItem(getHistoricalCacheKey(symbol));
+    const cached = localStorage.getItem(getHistoricalCacheKey(symbol, range));
     const parsed = cached ? JSON.parse(cached) : [];
 
     return Array.isArray(parsed) ? parsed : [];
@@ -36,11 +39,31 @@ const getCachedHistoricalData = (symbol) => {
   }
 };
 
-const setCachedHistoricalData = (symbol, data) => {
+const setCachedHistoricalData = (symbol, range, data) => {
   localStorage.setItem(
-    getHistoricalCacheKey(symbol),
+    getHistoricalCacheKey(symbol, range),
     JSON.stringify(data)
   );
+};
+
+const validateHistoricalRange = ({ start_date, end_date }) => {
+  if (!start_date || !end_date) {
+    return "Choose both start and end dates.";
+  }
+
+  if (!DATE_FORMAT.test(start_date) || !DATE_FORMAT.test(end_date)) {
+    return "Dates must use YYYY-MM-DD format.";
+  }
+
+  if (start_date > end_date) {
+    return "Start date cannot be after end date.";
+  }
+
+  if (start_date < HISTORICAL_MIN_DATE || end_date > HISTORICAL_MAX_DATE) {
+    return `Historical data is available from ${HISTORICAL_MIN_DATE} to ${HISTORICAL_MAX_DATE}.`;
+  }
+
+  return "";
 };
 
 function StockDetail({
@@ -55,17 +78,25 @@ function StockDetail({
   const [historicalChartData, setHistoricalChartData] = useState([]);
   const [historicalStatus, setHistoricalStatus] = useState("idle");
   const [historicalError, setHistoricalError] = useState("");
+  const [historicalForm, setHistoricalForm] = useState({
+    start_date: HISTORICAL_RANGE.start_date,
+    end_date: HISTORICAL_RANGE.end_date
+  });
+  const [historicalQuery, setHistoricalQuery] = useState({
+    ...HISTORICAL_RANGE,
+    requestId: 0
+  });
   const [alertTarget, setAlertTarget] = useState("");
 
   useEffect(() => {
-    if (viewMode !== "historical" || historicalChartData.length > 0) {
+    if (viewMode !== "historical") {
       return;
     }
 
     let ignore = false;
 
     const loadHistoricalData = async () => {
-      const cachedData = getCachedHistoricalData(symbol);
+      const cachedData = getCachedHistoricalData(symbol, historicalQuery);
 
       if (cachedData.length > 0) {
         setHistoricalChartData(cachedData);
@@ -79,7 +110,10 @@ function StockDetail({
       try {
         const response = await fetchHistoricalData({
           symbol,
-          ...HISTORICAL_RANGE
+          start_date: historicalQuery.start_date,
+          end_date: historicalQuery.end_date,
+          limit: historicalQuery.limit,
+          offset: historicalQuery.offset
         });
 
         if (ignore) return;
@@ -88,7 +122,7 @@ function StockDetail({
         const chartPoints = rows.map(toHistoricalChartPoint);
 
         setHistoricalChartData(chartPoints);
-        setCachedHistoricalData(symbol, chartPoints);
+        setCachedHistoricalData(symbol, historicalQuery, chartPoints);
         setHistoricalStatus("success");
       } catch (error) {
         if (ignore) return;
@@ -106,7 +140,7 @@ function StockDetail({
     return () => {
       ignore = true;
     };
-  }, [historicalChartData.length, symbol, viewMode]);
+  }, [historicalQuery, symbol, viewMode]);
 
   const isHistorical = viewMode === "historical";
   const activeChartData = isHistorical ? historicalChartData : chartData;
@@ -128,6 +162,38 @@ function StockDetail({
 
     onSetPriceAlert(symbol, target);
     setAlertTarget("");
+  };
+
+  const handleHistoricalFormChange = (event) => {
+    const { name, value } = event.target;
+
+    setHistoricalForm((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleHistoricalSubmit = (event) => {
+    event.preventDefault();
+
+    const validationMessage = validateHistoricalRange(historicalForm);
+
+    if (validationMessage) {
+      setHistoricalChartData([]);
+      setHistoricalStatus("error");
+      setHistoricalError(validationMessage);
+      return;
+    }
+
+    setHistoricalChartData([]);
+    setHistoricalError("");
+    setHistoricalQuery((prev) => ({
+      ...prev,
+      start_date: historicalForm.start_date,
+      end_date: historicalForm.end_date,
+      requestId: prev.requestId + 1
+    }));
+    setViewMode("historical");
   };
 
   return (
@@ -188,6 +254,41 @@ function StockDetail({
           </p>
         )}
       </form>
+
+      {isHistorical && (
+        <form className="historical-range-form" onSubmit={handleHistoricalSubmit}>
+          <div className="historical-range-form__fields">
+            <label>
+              Start
+              <input
+                max={HISTORICAL_MAX_DATE}
+                min={HISTORICAL_MIN_DATE}
+                name="start_date"
+                type="date"
+                value={historicalForm.start_date}
+                onChange={handleHistoricalFormChange}
+              />
+            </label>
+            <label>
+              End
+              <input
+                max={HISTORICAL_MAX_DATE}
+                min={HISTORICAL_MIN_DATE}
+                name="end_date"
+                type="date"
+                value={historicalForm.end_date}
+                onChange={handleHistoricalFormChange}
+              />
+            </label>
+            <button disabled={historicalStatus === "loading"} type="submit">
+              Apply range
+            </button>
+          </div>
+          <p>
+            Available range: {HISTORICAL_MIN_DATE} to {HISTORICAL_MAX_DATE}
+          </p>
+        </form>
+      )}
 
       {isHistorical && historicalStatus === "loading" && (
         <p className="state-message">Loading historical data...</p>
