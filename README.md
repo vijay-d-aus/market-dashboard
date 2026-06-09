@@ -20,7 +20,7 @@ A React + Node.js market dashboard for tracking NSE symbols with live ticks, det
 - Light/dark theme toggle
 - 5-point moving average overlay on charts
 - Backend-backed price alerts with history, delivery status, and in-app notifications
-- Demo-user workspace isolation for watchlists and alerts
+- Username/password authentication with token-scoped watchlists and alerts
 - Polished loading, empty, error, and connection states
 - Backend tests for validation and proxy error handling
 - Frontend tests for persistence, reconnect handling, and chart mode switching
@@ -102,18 +102,19 @@ If the backend fails with `EADDRINUSE`, another process is already using port `5
 
 ## Demo Flow
 
-1. Add symbols such as `RELIANCE`, `TCS`, or `INFY`.
-2. Confirm live prices, absolute change, and percentage change appear in the watchlist.
-3. Refresh the page and confirm the watchlist persists.
-4. Remove a symbol and confirm it leaves the watchlist.
-5. Move a symbol up or down, refresh, and confirm the order persists.
-6. Click `RELIANCE` to open the detail screen.
-7. Confirm the Intraday chart updates from live ticks using `CLOSE`.
-8. Toggle to Historical, choose a valid date range, and confirm historical `CLOSE` data loads.
-9. Point out the dashed `MA 5` moving-average overlay.
-10. Toggle light/dark mode from the header.
-11. Set a target price alert on a symbol detail page and wait for a live `CLOSE` crossing notification.
-12. Confirm the alert history shows created, triggered, and delivered states.
+1. Create an account or sign in.
+2. Add symbols such as `RELIANCE`, `TCS`, or `INFY`.
+3. Confirm live prices, absolute change, and percentage change appear in the watchlist.
+4. Refresh the page and confirm the watchlist persists for the signed-in user.
+5. Remove a symbol and confirm it leaves the watchlist.
+6. Move a symbol up or down, refresh, and confirm the order persists.
+7. Click `RELIANCE` to open the detail screen.
+8. Confirm the Intraday chart updates from live ticks using `CLOSE`.
+9. Toggle to Historical, choose a valid date range, and confirm historical `CLOSE` data loads.
+10. Point out the dashed `MA 5` moving-average overlay.
+11. Toggle light/dark mode from the header.
+12. Set a target price alert on a symbol detail page and wait for a live `CLOSE` crossing notification.
+13. Confirm the alert history shows created, triggered, and delivered states.
 
 ## Architecture Overview
 
@@ -121,7 +122,7 @@ The app is split into a React frontend and a Node/Express backend. The frontend 
 
 ```txt
 React client
-  | REST: /api/symbols, /api/intraday, /api/historical, /api/watchlist
+  | REST: /api/auth/*, /api/symbols, /api/intraday, /api/historical, /api/watchlist
   | Socket.IO: subscribe, ticker
   v
 Node/Express backend
@@ -134,8 +135,9 @@ mock-data.tealvue.in
 Main frontend flow:
 
 - `Dashboard.jsx` loads symbols and the saved backend watchlist, listens for live ticks, and opens the selected symbol detail screen.
+- The sign-in/register screen creates a local authenticated session before user-owned data is loaded.
 - The header includes a visible Socket.IO connection indicator and a light/dark theme toggle.
-- The header includes a workspace switcher that sends `X-Demo-User` so watchlists and alerts are scoped per demo user.
+- Authenticated requests send a bearer token so watchlists and alerts are scoped per signed-in user.
 - `Watchlist.jsx` and `WatchlistCard.jsx` render SQLite-backed watchlist symbols and latest tick values.
 - Removed symbols emit `unsubscribe` so the backend can forward the unsubscribe request to the ticker source.
 - Up/down reorder actions save the new watchlist order through `PUT /api/watchlist`.
@@ -146,13 +148,14 @@ Main frontend flow:
 Main backend flow:
 
 - `server/src/server.js` starts Express and Socket.IO.
-- `marketRoutes.js` exposes `/symbols`, `/intraday`, `/historical`, and `/watchlist`.
+- `marketRoutes.js` exposes `/auth/*`, `/symbols`, `/intraday`, `/historical`, `/watchlist`, and `/alerts`.
 - `marketController.js` validates requests and returns clean error responses.
+- `authStore.js` stores users, salted password hashes, and session tokens in SQLite.
 - `marketService.js` calls the mock REST API.
 - `marketService.js` calls through `cacheStore.js` for cacheable REST responses.
 - `cacheStore.js` stores symbol-list and historical responses in SQLite for 5 minutes.
-- `watchlistStore.js` stores watchlists by demo user in `server/data/market-dashboard.sqlite`.
-- `alertStore.js` stores price alerts and alert history by demo user in `server/data/market-dashboard.sqlite`.
+- `watchlistStore.js` stores watchlists by authenticated user in `server/data/market-dashboard.sqlite`.
+- `alertStore.js` stores price alerts and alert history by authenticated user in `server/data/market-dashboard.sqlite`.
 - `server.js` tracks requested symbols per connected frontend socket and sends each tick only to matching clients.
 - `tickerClient.js` connects to the remote ticker socket and keeps the upstream ticker subscribed to the aggregate set of requested symbols.
 - `server.js` evaluates active alerts on incoming ticks, marks triggered alerts, emits alert notifications to subscribed clients, and records delivery status.
@@ -160,6 +163,40 @@ Main backend flow:
 ## API Endpoints
 
 Backend routes are mounted under `/api`.
+
+### `POST /api/auth/register`
+
+Request:
+
+```json
+{
+  "username": "vijay",
+  "password": "secret1"
+}
+```
+
+Creates a local user and returns a bearer token.
+
+### `POST /api/auth/login`
+
+Request:
+
+```json
+{
+  "username": "vijay",
+  "password": "secret1"
+}
+```
+
+Returns the signed-in user and bearer token.
+
+### `GET /api/auth/me`
+
+Requires `Authorization: Bearer <token>` and returns the current user.
+
+### `POST /api/auth/logout`
+
+Requires `Authorization: Bearer <token>` and revokes the current token.
 
 ### `GET /api/symbols`
 
@@ -195,7 +232,7 @@ The mock historical API accepts a limited date range. This project uses `2026-05
 
 ### `GET /api/watchlist`
 
-Returns the saved watchlist from SQLite.
+Requires `Authorization: Bearer <token>` and returns the signed-in user's saved watchlist from SQLite.
 
 ### `PUT /api/watchlist`
 
@@ -207,11 +244,11 @@ Request:
 }
 ```
 
-The backend scopes the ordered list by `X-Demo-User`, normalizes symbols to uppercase, removes duplicates, and stores the list durably in `server/data/market-dashboard.sqlite`.
+The backend scopes the ordered list by authenticated user, normalizes symbols to uppercase, removes duplicates, and stores the list durably in `server/data/market-dashboard.sqlite`.
 
 ### `GET /api/alerts`
 
-Returns saved price alerts with their history.
+Requires `Authorization: Bearer <token>` and returns the signed-in user's saved price alerts with their history.
 
 ### `POST /api/alerts`
 
@@ -224,7 +261,7 @@ Request:
 }
 ```
 
-The backend scopes the alert by `X-Demo-User` and stores it as `active` with `pending` delivery status. When a live tick crosses the target, the backend marks it `triggered`, records history, emits an in-app notification to matching subscribed clients, and marks it `delivered` if at least one matching client receives the event.
+The backend scopes the alert by authenticated user and stores it as `active` with `pending` delivery status. When a live tick crosses the target, the backend marks it `triggered`, records history, emits an in-app notification to matching subscribed clients for that user, and marks it `delivered` if at least one matching client receives the event.
 
 ## API Inconsistencies And Handling
 
@@ -289,11 +326,18 @@ curl -s -X POST http://localhost:5050/api/historical \
 Watchlist persistence smoke test:
 
 ```bash
+TOKEN=$(curl -s -X POST http://localhost:5050/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"demo","password":"secret1"}' \
+  | node -e "let data='';process.stdin.on('data',c=>data+=c);process.stdin.on('end',()=>console.log(JSON.parse(data).data.token))")
+
 curl -s -X PUT http://localhost:5050/api/watchlist \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"symbols":["RELIANCE","TCS"]}'
 
-curl -s http://localhost:5050/api/watchlist
+curl -s http://localhost:5050/api/watchlist \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ## What I Learned
@@ -306,7 +350,6 @@ curl -s http://localhost:5050/api/watchlist
 
 ## Known Issues
 
-- Demo-user isolation is based on a local `X-Demo-User` header, not authentication.
 - Historical cache is still stored in `localStorage`, so it is browser-specific.
 - The live chart only keeps the latest 50 selected-symbol points in memory.
 - Historical date controls are constrained to the mock API's narrow supported range.
@@ -315,7 +358,7 @@ curl -s http://localhost:5050/api/watchlist
 
 ## With More Time I Would
 
-- Replace demo-user headers with real authentication and account management.
+- Harden auth with password reset, rate limiting, roles, and account recovery.
 - Add configurable alert rules such as above/below direction, expiry, and repeat notifications.
 - Add richer chart tools such as zoom, crosshair inspection, and selectable moving-average windows.
 - Add backend integration tests for Socket.IO subscription routing and alert delivery events.

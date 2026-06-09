@@ -12,7 +12,7 @@ const db = new DatabaseSync(DB_PATH);
 db.exec(`
   CREATE TABLE IF NOT EXISTS price_alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT NOT NULL DEFAULT 'demo-user',
+    user_id TEXT NOT NULL DEFAULT 'legacy-user',
     symbol TEXT NOT NULL,
     target REAL NOT NULL,
     status TEXT NOT NULL DEFAULT 'active',
@@ -25,7 +25,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS price_alert_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     alert_id INTEGER NOT NULL,
-    user_id TEXT NOT NULL DEFAULT 'demo-user',
+    user_id TEXT NOT NULL DEFAULT 'legacy-user',
     symbol TEXT NOT NULL,
     target REAL NOT NULL,
     event_type TEXT NOT NULL,
@@ -47,11 +47,11 @@ const ensureColumn = (tableName, columnName, definition) => {
   }
 };
 
-ensureColumn("price_alerts", "user_id", "TEXT NOT NULL DEFAULT 'demo-user'");
+ensureColumn("price_alerts", "user_id", "TEXT NOT NULL DEFAULT 'legacy-user'");
 ensureColumn(
   "price_alert_history",
   "user_id",
-  "TEXT NOT NULL DEFAULT 'demo-user'"
+  "TEXT NOT NULL DEFAULT 'legacy-user'"
 );
 
 const normalizeAlert = (row, history = []) => ({
@@ -100,7 +100,7 @@ const getAlertById = (alertId) => {
 };
 
 const normalizeUserId = (userId) => {
-  return String(userId || "demo-user").trim() || "demo-user";
+  return String(userId || "legacy-user").trim() || "legacy-user";
 };
 
 const listAlerts = (userId) => {

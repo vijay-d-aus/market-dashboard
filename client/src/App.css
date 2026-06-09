@@ -218,7 +218,7 @@
   justify-content: flex-end;
 }
 
-.user-switcher {
+.user-session {
   display: inline-flex;
   gap: 8px;
   align-items: center;
@@ -226,23 +226,7 @@
   font-size: 14px;
 }
 
-.user-switcher input {
-  width: 150px;
-  min-height: 36px;
-  padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--text-h);
-  background: var(--surface-muted);
-  font: inherit;
-}
-
-.user-switcher input:focus-visible {
-  border-color: var(--accent-border);
-  outline: none;
-}
-
-.user-switcher button {
+.user-session button {
   min-height: 36px;
   padding: 7px 10px;
   border: 1px solid var(--border);
@@ -253,10 +237,86 @@
   font: inherit;
 }
 
-.user-switcher button:hover,
-.user-switcher button:focus-visible {
+.user-session button:hover,
+.user-session button:focus-visible {
   border-color: var(--accent-border);
   outline: none;
+}
+
+.auth-panel {
+  width: min(420px, 100%);
+  margin: 48px auto;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.auth-panel h2 {
+  margin-top: 0;
+  margin-bottom: 18px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-form label {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.auth-form input {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-h);
+  background: var(--surface-muted);
+  font: inherit;
+}
+
+.auth-form input:focus-visible {
+  border-color: var(--accent-border);
+  outline: none;
+}
+
+.auth-form button,
+.auth-mode-toggle {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-h);
+  background: var(--surface-muted);
+  cursor: pointer;
+  font: inherit;
+}
+
+.auth-form button {
+  margin-top: 8px;
+  background: var(--accent-bg);
+}
+
+.auth-form button:hover,
+.auth-form button:focus-visible,
+.auth-mode-toggle:hover,
+.auth-mode-toggle:focus-visible {
+  border-color: var(--accent-border);
+  outline: none;
+}
+
+.auth-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.auth-mode-toggle {
+  width: 100%;
+  margin-top: 12px;
 }
 
 .theme-toggle {

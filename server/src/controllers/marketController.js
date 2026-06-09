@@ -35,10 +35,9 @@ const isDateString = (value) => {
 };
 
 const getUserId = (req) => {
-  const rawUserId = req.get?.("X-Demo-User") || req.body?.user_id || "demo-user";
-  const userId = String(rawUserId).trim().slice(0, 64);
+  const userId = String(req.user?.id || "legacy-user").trim().slice(0, 64);
 
-  return userId || "demo-user";
+  return userId || "legacy-user";
 };
 
 const getSymbols = async (req, res) => {

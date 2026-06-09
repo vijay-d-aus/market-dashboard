@@ -7,20 +7,53 @@ const api = axios.create({
   baseURL: API_BASE_URL
 });
 
-export const getDemoUserId = () => {
-  return localStorage.getItem("demoUserId") || "demo-user";
+export const getAuthToken = () => {
+  return localStorage.getItem("authToken") || "";
 };
 
-export const setDemoUserId = (userId) => {
-  const normalizedUserId = String(userId || "demo-user").trim() || "demo-user";
-  localStorage.setItem("demoUserId", normalizedUserId);
-  return normalizedUserId;
+export const setAuthSession = ({ token, user }) => {
+  localStorage.setItem("authToken", token);
+  localStorage.setItem("authUser", JSON.stringify(user));
+};
+
+export const clearAuthSession = () => {
+  localStorage.removeItem("authToken");
+  localStorage.removeItem("authUser");
+};
+
+export const getStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("authUser")) || null;
+  } catch {
+    return null;
+  }
 };
 
 api.interceptors.request.use((config) => {
-  config.headers["X-Demo-User"] = getDemoUserId();
+  const token = getAuthToken();
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
   return config;
 });
+
+export const login = (payload) => {
+  return api.post("/auth/login", payload);
+};
+
+export const register = (payload) => {
+  return api.post("/auth/register", payload);
+};
+
+export const fetchCurrentUser = () => {
+  return api.get("/auth/me");
+};
+
+export const logout = () => {
+  return api.post("/auth/logout");
+};
 
 export const fetchHistoricalData = (payload) => {
   return api.post("/historical", payload);

@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import api from "../services/api";
 import {
+  clearAuthSession,
   createPriceAlert,
+  fetchCurrentUser,
   fetchAlerts,
   fetchWatchlist,
-  getDemoUserId,
+  getAuthToken,
+  getStoredUser,
+  login,
+  logout,
+  register,
   saveWatchlist,
-  setDemoUserId
+  setAuthSession
 } from "../services/api";
 import socket from "../services/socket";
 import SearchBar from "../components/SearchBar";
@@ -23,13 +29,23 @@ const getStoredTheme = () => {
 };
 
 function Dashboard() {
-  const [userId, setUserId] = useState(getDemoUserId);
-  const [userIdInput, setUserIdInput] = useState(userId);
+  const [authUser, setAuthUser] = useState(() => {
+    return getAuthToken() ? getStoredUser() : null;
+  });
+  const [authMode, setAuthMode] = useState("login");
+  const [authForm, setAuthForm] = useState({
+    username: "",
+    password: ""
+  });
+  const [authStatus, setAuthStatus] = useState(
+    getAuthToken() ? "checking" : "idle"
+  );
+  const [authError, setAuthError] = useState("");
   const [symbols, setSymbols] = useState([]);
-  const [symbolsStatus, setSymbolsStatus] = useState("loading");
+  const [symbolsStatus, setSymbolsStatus] = useState("idle");
   const [symbolsError, setSymbolsError] = useState("");
   const [watchlist, setWatchlist] = useState([]);
-  const [watchlistStatus, setWatchlistStatus] = useState("loading");
+  const [watchlistStatus, setWatchlistStatus] = useState("idle");
   const [watchlistError, setWatchlistError] = useState("");
   const [liveData, setLiveData] = useState({});
   const [connectionStatus, setConnectionStatus] = useState("Disconnected");
@@ -42,9 +58,36 @@ function Dashboard() {
   const selectedSymbolRef = useRef(null);
   const watchlistRef = useRef(watchlist);
   const liveDataRef = useRef(liveData);
-  const userIdRef = useRef(userId);
 
   useEffect(() => {
+    const validateSession = async () => {
+      if (!getAuthToken()) return;
+
+      try {
+        const response = await fetchCurrentUser();
+        const user = response.data.data.user;
+        setAuthUser(user);
+        setAuthSession({
+          token: getAuthToken(),
+          user
+        });
+        setAuthStatus("idle");
+      } catch (error) {
+        console.log("Stored session is no longer valid", error);
+        clearAuthSession();
+        setAuthUser(null);
+        setAuthStatus("idle");
+      }
+    };
+
+    validateSession();
+  }, []);
+
+  useEffect(() => {
+    if (!authUser) {
+      return;
+    }
+
     const loadInitialData = async () => {
       setSymbolsStatus("loading");
       setWatchlistStatus("loading");
@@ -86,14 +129,14 @@ function Dashboard() {
     };
 
     loadInitialData();
-  }, [userId]);
+  }, [authUser]);
 
   useEffect(() => {
     socket.connect();
 
     socket.on("connect", () => {
       setConnectionStatus("Connected");
-      socket.emit("identify", userIdRef.current);
+      socket.emit("authenticate", getAuthToken());
 
       if (watchlistRef.current.length > 0) {
         socket.emit("subscribe", watchlistRef.current);
@@ -179,12 +222,10 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
-    userIdRef.current = userId;
-
     if (socket.connected) {
-      socket.emit("identify", userId);
+      socket.emit("authenticate", getAuthToken());
     }
-  }, [userId]);
+  }, [authUser]);
 
   useEffect(() => {
     watchlistRef.current = watchlist;
@@ -288,23 +329,57 @@ function Dashboard() {
     }
   };
 
-  const handleUserSubmit = (event) => {
+  const handleAuthSubmit = async (event) => {
     event.preventDefault();
+    setAuthError("");
+    setAuthStatus("submitting");
 
-    const nextUserId = setDemoUserId(userIdInput);
+    try {
+      const authAction = authMode === "login" ? login : register;
+      const response = await authAction(authForm);
+      const session = response.data.data;
 
-    if (nextUserId === userId) {
-      setUserIdInput(nextUserId);
-      return;
+      setAuthSession(session);
+      setAuthUser(session.user);
+      setAuthForm({
+        username: "",
+        password: ""
+      });
+      setAuthStatus("idle");
+
+      if (socket.connected) {
+        socket.emit("authenticate", session.token);
+      }
+    } catch (error) {
+      console.log("Authentication failed", error);
+      setAuthStatus("idle");
+      setAuthError(
+        error.response?.data?.message || "Could not complete sign in."
+      );
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.log("Logout failed", error);
     }
 
-    if (socket.connected && watchlistRef.current.length > 0) {
-      socket.emit("unsubscribe", watchlistRef.current);
+    if (socket.connected) {
+      if (watchlistRef.current.length > 0) {
+        socket.emit("unsubscribe", watchlistRef.current);
+      }
+
+      socket.emit("authenticate", "");
     }
 
-    setUserId(nextUserId);
+    clearAuthSession();
+    setAuthUser(null);
     setWatchlist([]);
     watchlistRef.current = [];
+    setSymbolsStatus("idle");
+    setWatchlistStatus("idle");
     setPriceAlerts([]);
     setLiveData({});
     liveDataRef.current = {};
@@ -338,16 +413,14 @@ function Dashboard() {
         </div>
 
         <div className="dashboard__actions">
-          <form className="user-switcher" onSubmit={handleUserSubmit}>
-            <label htmlFor="demo-user-id">Workspace</label>
-            <input
-              id="demo-user-id"
-              type="text"
-              value={userIdInput}
-              onChange={(event) => setUserIdInput(event.target.value)}
-            />
-            <button type="submit">Use</button>
-          </form>
+          {authUser && (
+            <div className="user-session">
+              <span>Signed in as {authUser.id}</span>
+              <button type="button" onClick={handleLogout}>
+                Logout
+              </button>
+            </div>
+          )}
 
           <button
             className="theme-toggle"
@@ -368,6 +441,74 @@ function Dashboard() {
         </div>
       </header>
 
+      {!authUser && (
+        <section className="auth-panel" aria-labelledby="auth-title">
+          <h2 id="auth-title">
+            {authMode === "login" ? "Sign in" : "Create account"}
+          </h2>
+          <form className="auth-form" onSubmit={handleAuthSubmit}>
+            <label htmlFor="username">Username</label>
+            <input
+              id="username"
+              type="text"
+              autoComplete="username"
+              value={authForm.username}
+              onChange={(event) =>
+                setAuthForm((prev) => ({
+                  ...prev,
+                  username: event.target.value
+                }))
+              }
+            />
+
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              autoComplete={
+                authMode === "login" ? "current-password" : "new-password"
+              }
+              value={authForm.password}
+              onChange={(event) =>
+                setAuthForm((prev) => ({
+                  ...prev,
+                  password: event.target.value
+                }))
+              }
+            />
+
+            {authError && <p className="auth-error">{authError}</p>}
+
+            <button type="submit" disabled={authStatus === "submitting"}>
+              {authStatus === "submitting"
+                ? "Working..."
+                : authMode === "login"
+                  ? "Sign in"
+                  : "Create account"}
+            </button>
+          </form>
+
+          <button
+            className="auth-mode-toggle"
+            type="button"
+            onClick={() => {
+              setAuthMode(authMode === "login" ? "register" : "login");
+              setAuthError("");
+            }}
+          >
+            {authMode === "login"
+              ? "Create a new account"
+              : "Use an existing account"}
+          </button>
+        </section>
+      )}
+
+      {authStatus === "checking" && (
+        <p className="loading-copy">Checking saved session...</p>
+      )}
+
+      {authUser && (
+        <>
       {notification && (
         <div className="price-alert-notification" role="status">
           <div>
@@ -412,6 +553,8 @@ function Dashboard() {
             onRemoveSymbol={handleRemoveSymbol}
             onReorderSymbol={handleReorderSymbol}
           />
+        </>
+      )}
         </>
       )}
     </main>

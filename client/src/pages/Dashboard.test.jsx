@@ -6,11 +6,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Dashboard from "./Dashboard";
 import api, {
   createPriceAlert,
+  fetchCurrentUser,
   fetchAlerts,
   fetchWatchlist,
-  getDemoUserId,
+  getAuthToken,
+  getStoredUser,
+  login,
+  logout,
+  register,
   saveWatchlist,
-  setDemoUserId
+  setAuthSession
 } from "../services/api";
 import socket from "../services/socket";
 
@@ -18,12 +23,18 @@ vi.mock("../services/api", () => ({
   default: {
     get: vi.fn()
   },
+  clearAuthSession: vi.fn(),
   createPriceAlert: vi.fn(),
+  fetchCurrentUser: vi.fn(),
   fetchAlerts: vi.fn(),
   fetchWatchlist: vi.fn(),
-  getDemoUserId: vi.fn(),
+  getAuthToken: vi.fn(),
+  getStoredUser: vi.fn(),
+  login: vi.fn(),
+  logout: vi.fn(),
+  register: vi.fn(),
   saveWatchlist: vi.fn(),
-  setDemoUserId: vi.fn()
+  setAuthSession: vi.fn()
 }));
 
 vi.mock("../services/socket", () => ({
@@ -93,8 +104,44 @@ describe("Dashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     socket.connected = false;
-    getDemoUserId.mockReturnValue("demo-user");
-    setDemoUserId.mockImplementation((userId) => userId);
+    getAuthToken.mockReturnValue("token-1");
+    getStoredUser.mockReturnValue({
+      id: "alice"
+    });
+    fetchCurrentUser.mockResolvedValue({
+      data: {
+        data: {
+          user: {
+            id: "alice"
+          }
+        }
+      }
+    });
+    login.mockResolvedValue({
+      data: {
+        data: {
+          token: "token-1",
+          user: {
+            id: "alice"
+          }
+        }
+      }
+    });
+    register.mockResolvedValue({
+      data: {
+        data: {
+          token: "token-1",
+          user: {
+            id: "alice"
+          }
+        }
+      }
+    });
+    logout.mockResolvedValue({
+      data: {
+        success: true
+      }
+    });
   });
 
   it("loads the persisted backend watchlist and saves additions", async () => {
@@ -129,6 +176,7 @@ describe("Dashboard", () => {
       handlers.connect();
     });
 
+    expect(socket.emit).toHaveBeenCalledWith("authenticate", "token-1");
     expect(socket.emit).toHaveBeenCalledWith("subscribe", ["RELIANCE", "TCS"]);
     expect(screen.getByText("Connected")).toBeInTheDocument();
   });
@@ -159,32 +207,28 @@ describe("Dashboard", () => {
     expect(screen.getByText("Delivery: pending")).toBeInTheDocument();
   });
 
-  it("reloads watchlist and alerts when the demo workspace changes", async () => {
+  it("signs in before loading user-owned watchlist data", async () => {
     const user = userEvent.setup();
-    setupInitialData(["RELIANCE"]);
-    fetchWatchlist
-      .mockResolvedValueOnce({
-        data: {
-          data: ["RELIANCE"]
-        }
-      })
-      .mockResolvedValueOnce({
-        data: {
-          data: ["TCS"]
-        }
-      });
-    setDemoUserId.mockReturnValue("desk-two");
+    getAuthToken.mockReturnValue("");
+    getStoredUser.mockReturnValue(null);
+    setupInitialData(["TCS"]);
 
     render(<Dashboard />);
 
-    expect(await screen.findByText("RELIANCE")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(fetchWatchlist).not.toHaveBeenCalled();
 
-    await user.clear(screen.getByLabelText("Workspace"));
-    await user.type(screen.getByLabelText("Workspace"), "desk-two");
-    await user.click(screen.getByRole("button", { name: "Use" }));
+    await user.type(screen.getByLabelText("Username"), "alice");
+    await user.type(screen.getByLabelText("Password"), "secret1");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
-      expect(fetchWatchlist).toHaveBeenCalledTimes(2);
+      expect(setAuthSession).toHaveBeenCalledWith({
+        token: "token-1",
+        user: {
+          id: "alice"
+        }
+      });
     });
 
     expect(await screen.findByText("TCS")).toBeInTheDocument();

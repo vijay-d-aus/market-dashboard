@@ -55,7 +55,7 @@ const normalizeSymbols = (symbols) => {
 };
 
 const normalizeUserId = (userId) => {
-  return String(userId || "demo-user").trim() || "demo-user";
+  return String(userId || "legacy-user").trim() || "legacy-user";
 };
 
 const migrateDefaultWatchlist = () => {
@@ -76,7 +76,7 @@ const migrateDefaultWatchlist = () => {
   const insertStatement = db.prepare(
     `INSERT OR IGNORE INTO watchlist_items
        (user_id, symbol, position, created_at)
-     VALUES ('demo-user', ?, ?, ?)`
+     VALUES ('legacy-user', ?, ?, ?)`
   );
 
   legacyRows.forEach((row, index) => {

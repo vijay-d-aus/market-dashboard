@@ -5,6 +5,7 @@ require("dotenv").config();
 const app = require("./app");
 const tickerClient = require("./socket/tickerClient");
 const alertStore = require("./services/alertStore");
+const authStore = require("./services/authStore");
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -69,11 +70,17 @@ const unsubscribeUpstream = (symbols) => {
 io.on("connection", (frontendSocket) => {
   console.log("Frontend connected:", frontendSocket.id);
   socketSubscriptions.set(frontendSocket.id, new Set());
-  socketUsers.set(frontendSocket.id, "demo-user");
+  socketUsers.set(frontendSocket.id, null);
 
-  frontendSocket.on("identify", (userId) => {
-    const normalizedUserId = String(userId || "demo-user").trim().slice(0, 64);
-    socketUsers.set(frontendSocket.id, normalizedUserId || "demo-user");
+  const authenticateSocket = (token) => {
+    const user = authStore.getUserByToken(token);
+    socketUsers.set(frontendSocket.id, user?.id || null);
+  };
+
+  authenticateSocket(frontendSocket.handshake.auth?.token);
+
+  frontendSocket.on("authenticate", (token) => {
+    authenticateSocket(token);
   });
 
   frontendSocket.on("subscribe", (symbols) => {
