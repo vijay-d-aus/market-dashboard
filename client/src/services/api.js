@@ -7,6 +7,21 @@ const api = axios.create({
   baseURL: API_BASE_URL
 });
 
+export const getDemoUserId = () => {
+  return localStorage.getItem("demoUserId") || "demo-user";
+};
+
+export const setDemoUserId = (userId) => {
+  const normalizedUserId = String(userId || "demo-user").trim() || "demo-user";
+  localStorage.setItem("demoUserId", normalizedUserId);
+  return normalizedUserId;
+};
+
+api.interceptors.request.use((config) => {
+  config.headers["X-Demo-User"] = getDemoUserId();
+  return config;
+});
+
 export const fetchHistoricalData = (payload) => {
   return api.post("/historical", payload);
 };

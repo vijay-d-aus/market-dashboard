@@ -34,6 +34,13 @@ const isDateString = (value) => {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 };
 
+const getUserId = (req) => {
+  const rawUserId = req.get?.("X-Demo-User") || req.body?.user_id || "demo-user";
+  const userId = String(rawUserId).trim().slice(0, 64);
+
+  return userId || "demo-user";
+};
+
 const getSymbols = async (req, res) => {
   try {
     const data = await marketService.fetchSymbols();
@@ -164,9 +171,11 @@ const getHistoricalData = async (req, res) => {
 
 const getWatchlist = (req, res) => {
   try {
+    const userId = getUserId(req);
+
     res.status(200).json({
       success: true,
-      data: watchlistStore.getWatchlist()
+      data: watchlistStore.getWatchlist(userId)
     });
   } catch (error) {
     console.log("Watchlist read error:", error.message);
@@ -181,6 +190,7 @@ const getWatchlist = (req, res) => {
 const updateWatchlist = (req, res) => {
   try {
     const { symbols } = req.body || {};
+    const userId = getUserId(req);
 
     if (!Array.isArray(symbols)) {
       return res.status(400).json({
@@ -207,7 +217,7 @@ const updateWatchlist = (req, res) => {
       });
     }
 
-    const data = watchlistStore.replaceWatchlist(symbols);
+    const data = watchlistStore.replaceWatchlist(userId, symbols);
 
     res.status(200).json({
       success: true,
@@ -225,9 +235,11 @@ const updateWatchlist = (req, res) => {
 
 const getAlerts = (req, res) => {
   try {
+    const userId = getUserId(req);
+
     res.status(200).json({
       success: true,
-      data: alertStore.listAlerts()
+      data: alertStore.listAlerts(userId)
     });
   } catch (error) {
     console.log("Alerts read error:", error.message);
@@ -242,6 +254,7 @@ const getAlerts = (req, res) => {
 const createAlert = (req, res) => {
   try {
     const { symbol, target } = req.body || {};
+    const userId = getUserId(req);
     const normalizedSymbol = String(symbol || "").trim().toUpperCase();
     const parsedTarget = Number(target);
 
@@ -260,6 +273,7 @@ const createAlert = (req, res) => {
     }
 
     const data = alertStore.createAlert({
+      userId,
       symbol: normalizedSymbol,
       target: parsedTarget
     });

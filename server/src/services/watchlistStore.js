@@ -10,6 +10,14 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 const db = new DatabaseSync(DB_PATH);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS watchlist_items (
+    user_id TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    position INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, symbol)
+  );
+
   CREATE TABLE IF NOT EXISTS watchlist (
     symbol TEXT PRIMARY KEY,
     position INTEGER,
@@ -46,29 +54,65 @@ const normalizeSymbols = (symbols) => {
   return normalized;
 };
 
-const getWatchlist = () => {
-  return db
+const normalizeUserId = (userId) => {
+  return String(userId || "demo-user").trim() || "demo-user";
+};
+
+const migrateDefaultWatchlist = () => {
+  const existingCount = db
+    .prepare("SELECT COUNT(*) AS count FROM watchlist_items")
+    .get().count;
+
+  if (existingCount > 0) return;
+
+  const legacyRows = db
     .prepare(
-      `SELECT symbol
+      `SELECT symbol, position, created_at
        FROM watchlist
        ORDER BY position IS NULL ASC, position ASC, created_at ASC, symbol ASC`
     )
-    .all()
+    .all();
+
+  const insertStatement = db.prepare(
+    `INSERT OR IGNORE INTO watchlist_items
+       (user_id, symbol, position, created_at)
+     VALUES ('demo-user', ?, ?, ?)`
+  );
+
+  legacyRows.forEach((row, index) => {
+    insertStatement.run(row.symbol, row.position ?? index, row.created_at);
+  });
+};
+
+migrateDefaultWatchlist();
+
+const getWatchlist = (userId) => {
+  const normalizedUserId = normalizeUserId(userId);
+
+  return db
+    .prepare(
+      `SELECT symbol
+       FROM watchlist_items
+       WHERE user_id = ?
+       ORDER BY position IS NULL ASC, position ASC, created_at ASC, symbol ASC`
+    )
+    .all(normalizedUserId)
     .map((row) => row.symbol);
 };
 
-const replaceWatchlist = (symbols) => {
+const replaceWatchlist = (userId, symbols) => {
+  const normalizedUserId = normalizeUserId(userId);
   const normalizedSymbols = normalizeSymbols(symbols);
   const insertStatement = db.prepare(
-    "INSERT INTO watchlist (symbol, position) VALUES (?, ?)"
+    "INSERT INTO watchlist_items (user_id, symbol, position) VALUES (?, ?, ?)"
   );
 
   db.exec("BEGIN");
 
   try {
-    db.exec("DELETE FROM watchlist");
+    db.prepare("DELETE FROM watchlist_items WHERE user_id = ?").run(normalizedUserId);
     normalizedSymbols.forEach((symbol, index) => {
-      insertStatement.run(symbol, index);
+      insertStatement.run(normalizedUserId, symbol, index);
     });
     db.exec("COMMIT");
   } catch (error) {

@@ -14,6 +14,7 @@ const io = new Server(server, {
 });
 
 const socketSubscriptions = new Map();
+const socketUsers = new Map();
 const upstreamSubscriptions = new Set();
 const latestPrices = new Map();
 
@@ -68,6 +69,12 @@ const unsubscribeUpstream = (symbols) => {
 io.on("connection", (frontendSocket) => {
   console.log("Frontend connected:", frontendSocket.id);
   socketSubscriptions.set(frontendSocket.id, new Set());
+  socketUsers.set(frontendSocket.id, "demo-user");
+
+  frontendSocket.on("identify", (userId) => {
+    const normalizedUserId = String(userId || "demo-user").trim().slice(0, 64);
+    socketUsers.set(frontendSocket.id, normalizedUserId || "demo-user");
+  });
 
   frontendSocket.on("subscribe", (symbols) => {
     if (!Array.isArray(symbols)) {
@@ -107,6 +114,7 @@ io.on("connection", (frontendSocket) => {
     const subscriptions = socketSubscriptions.get(frontendSocket.id) || new Set();
 
     socketSubscriptions.delete(frontendSocket.id);
+    socketUsers.delete(frontendSocket.id);
     unsubscribeUpstream([...subscriptions]);
 
     console.log("Frontend disconnected:", frontendSocket.id);
@@ -159,7 +167,9 @@ tickerClient.on("ticker", (tick) => {
     let alertDeliveredCount = 0;
 
     socketSubscriptions.forEach((subscriptions, socketId) => {
-      if (!subscriptions.has(symbol)) return;
+      if (!subscriptions.has(symbol) || socketUsers.get(socketId) !== alert.user_id) {
+        return;
+      }
 
       io.to(socketId).emit("price_alert", alert);
       alertDeliveredCount += 1;
@@ -175,7 +185,9 @@ tickerClient.on("ticker", (tick) => {
 
     deliveredAlerts.forEach((alert) => {
       socketSubscriptions.forEach((subscriptions, socketId) => {
-        if (!subscriptions.has(symbol)) return;
+        if (!subscriptions.has(symbol) || socketUsers.get(socketId) !== alert.user_id) {
+          return;
+        }
 
         io.to(socketId).emit("price_alert_updated", alert);
       });

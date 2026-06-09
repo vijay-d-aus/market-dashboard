@@ -8,7 +8,9 @@ import api, {
   createPriceAlert,
   fetchAlerts,
   fetchWatchlist,
-  saveWatchlist
+  getDemoUserId,
+  saveWatchlist,
+  setDemoUserId
 } from "../services/api";
 import socket from "../services/socket";
 
@@ -19,7 +21,9 @@ vi.mock("../services/api", () => ({
   createPriceAlert: vi.fn(),
   fetchAlerts: vi.fn(),
   fetchWatchlist: vi.fn(),
-  saveWatchlist: vi.fn()
+  getDemoUserId: vi.fn(),
+  saveWatchlist: vi.fn(),
+  setDemoUserId: vi.fn()
 }));
 
 vi.mock("../services/socket", () => ({
@@ -89,6 +93,8 @@ describe("Dashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     socket.connected = false;
+    getDemoUserId.mockReturnValue("demo-user");
+    setDemoUserId.mockImplementation((userId) => userId);
   });
 
   it("loads the persisted backend watchlist and saves additions", async () => {
@@ -151,5 +157,36 @@ describe("Dashboard", () => {
 
     expect(screen.getByText("RELIANCE alert triggered")).toBeInTheDocument();
     expect(screen.getByText("Delivery: pending")).toBeInTheDocument();
+  });
+
+  it("reloads watchlist and alerts when the demo workspace changes", async () => {
+    const user = userEvent.setup();
+    setupInitialData(["RELIANCE"]);
+    fetchWatchlist
+      .mockResolvedValueOnce({
+        data: {
+          data: ["RELIANCE"]
+        }
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: ["TCS"]
+        }
+      });
+    setDemoUserId.mockReturnValue("desk-two");
+
+    render(<Dashboard />);
+
+    expect(await screen.findByText("RELIANCE")).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Workspace"));
+    await user.type(screen.getByLabelText("Workspace"), "desk-two");
+    await user.click(screen.getByRole("button", { name: "Use" }));
+
+    await waitFor(() => {
+      expect(fetchWatchlist).toHaveBeenCalledTimes(2);
+    });
+
+    expect(await screen.findByText("TCS")).toBeInTheDocument();
   });
 });

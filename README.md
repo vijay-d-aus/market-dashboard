@@ -20,6 +20,7 @@ A React + Node.js market dashboard for tracking NSE symbols with live ticks, det
 - Light/dark theme toggle
 - 5-point moving average overlay on charts
 - Backend-backed price alerts with history, delivery status, and in-app notifications
+- Demo-user workspace isolation for watchlists and alerts
 - Polished loading, empty, error, and connection states
 - Backend tests for validation and proxy error handling
 - Frontend tests for persistence, reconnect handling, and chart mode switching
@@ -134,6 +135,7 @@ Main frontend flow:
 
 - `Dashboard.jsx` loads symbols and the saved backend watchlist, listens for live ticks, and opens the selected symbol detail screen.
 - The header includes a visible Socket.IO connection indicator and a light/dark theme toggle.
+- The header includes a workspace switcher that sends `X-Demo-User` so watchlists and alerts are scoped per demo user.
 - `Watchlist.jsx` and `WatchlistCard.jsx` render SQLite-backed watchlist symbols and latest tick values.
 - Removed symbols emit `unsubscribe` so the backend can forward the unsubscribe request to the ticker source.
 - Up/down reorder actions save the new watchlist order through `PUT /api/watchlist`.
@@ -149,8 +151,8 @@ Main backend flow:
 - `marketService.js` calls the mock REST API.
 - `marketService.js` calls through `cacheStore.js` for cacheable REST responses.
 - `cacheStore.js` stores symbol-list and historical responses in SQLite for 5 minutes.
-- `watchlistStore.js` stores the watchlist in `server/data/market-dashboard.sqlite`.
-- `alertStore.js` stores price alerts and alert history in `server/data/market-dashboard.sqlite`.
+- `watchlistStore.js` stores watchlists by demo user in `server/data/market-dashboard.sqlite`.
+- `alertStore.js` stores price alerts and alert history by demo user in `server/data/market-dashboard.sqlite`.
 - `server.js` tracks requested symbols per connected frontend socket and sends each tick only to matching clients.
 - `tickerClient.js` connects to the remote ticker socket and keeps the upstream ticker subscribed to the aggregate set of requested symbols.
 - `server.js` evaluates active alerts on incoming ticks, marks triggered alerts, emits alert notifications to subscribed clients, and records delivery status.
@@ -205,7 +207,7 @@ Request:
 }
 ```
 
-The backend normalizes symbols to uppercase, removes duplicates, and stores the ordered list durably in `server/data/market-dashboard.sqlite`.
+The backend scopes the ordered list by `X-Demo-User`, normalizes symbols to uppercase, removes duplicates, and stores the list durably in `server/data/market-dashboard.sqlite`.
 
 ### `GET /api/alerts`
 
@@ -222,7 +224,7 @@ Request:
 }
 ```
 
-The backend stores the alert as `active` with `pending` delivery status. When a live tick crosses the target, the backend marks it `triggered`, records history, emits an in-app notification, and marks it `delivered` if at least one subscribed client receives the event.
+The backend scopes the alert by `X-Demo-User` and stores it as `active` with `pending` delivery status. When a live tick crosses the target, the backend marks it `triggered`, records history, emits an in-app notification to matching subscribed clients, and marks it `delivered` if at least one matching client receives the event.
 
 ## API Inconsistencies And Handling
 
@@ -304,7 +306,7 @@ curl -s http://localhost:5050/api/watchlist
 
 ## Known Issues
 
-- The watchlist is persisted in a single local SQLite database, so it is durable but not multi-user isolated.
+- Demo-user isolation is based on a local `X-Demo-User` header, not authentication.
 - Historical cache is still stored in `localStorage`, so it is browser-specific.
 - The live chart only keeps the latest 50 selected-symbol points in memory.
 - Historical date controls are constrained to the mock API's narrow supported range.
@@ -313,7 +315,7 @@ curl -s http://localhost:5050/api/watchlist
 
 ## With More Time I Would
 
-- Add user accounts so watchlists and alerts are isolated per person.
+- Replace demo-user headers with real authentication and account management.
 - Add configurable alert rules such as above/below direction, expiry, and repeat notifications.
 - Add richer chart tools such as zoom, crosshair inspection, and selectable moving-average windows.
 - Add backend integration tests for Socket.IO subscription routing and alert delivery events.
@@ -324,5 +326,5 @@ curl -s http://localhost:5050/api/watchlist
 
 - The frontend calls only the local backend, not the remote mock API directly.
 - The backend proxies REST requests and bridges remote ticker events to frontend clients.
-- Watchlist persistence and backend REST cache entries are stored in local SQLite.
+- Watchlist persistence, alerts, and backend REST cache entries are stored in local SQLite.
 - Historical chart cache remains frontend-local for quick chart reloads.

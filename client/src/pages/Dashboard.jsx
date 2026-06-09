@@ -4,7 +4,9 @@ import {
   createPriceAlert,
   fetchAlerts,
   fetchWatchlist,
-  saveWatchlist
+  getDemoUserId,
+  saveWatchlist,
+  setDemoUserId
 } from "../services/api";
 import socket from "../services/socket";
 import SearchBar from "../components/SearchBar";
@@ -21,6 +23,8 @@ const getStoredTheme = () => {
 };
 
 function Dashboard() {
+  const [userId, setUserId] = useState(getDemoUserId);
+  const [userIdInput, setUserIdInput] = useState(userId);
   const [symbols, setSymbols] = useState([]);
   const [symbolsStatus, setSymbolsStatus] = useState("loading");
   const [symbolsError, setSymbolsError] = useState("");
@@ -38,6 +42,7 @@ function Dashboard() {
   const selectedSymbolRef = useRef(null);
   const watchlistRef = useRef(watchlist);
   const liveDataRef = useRef(liveData);
+  const userIdRef = useRef(userId);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -81,13 +86,14 @@ function Dashboard() {
     };
 
     loadInitialData();
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     socket.connect();
 
     socket.on("connect", () => {
       setConnectionStatus("Connected");
+      socket.emit("identify", userIdRef.current);
 
       if (watchlistRef.current.length > 0) {
         socket.emit("subscribe", watchlistRef.current);
@@ -171,6 +177,14 @@ function Dashboard() {
       socket.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    userIdRef.current = userId;
+
+    if (socket.connected) {
+      socket.emit("identify", userId);
+    }
+  }, [userId]);
 
   useEffect(() => {
     watchlistRef.current = watchlist;
@@ -274,6 +288,29 @@ function Dashboard() {
     }
   };
 
+  const handleUserSubmit = (event) => {
+    event.preventDefault();
+
+    const nextUserId = setDemoUserId(userIdInput);
+
+    if (nextUserId === userId) {
+      setUserIdInput(nextUserId);
+      return;
+    }
+
+    if (socket.connected && watchlistRef.current.length > 0) {
+      socket.emit("unsubscribe", watchlistRef.current);
+    }
+
+    setUserId(nextUserId);
+    setWatchlist([]);
+    watchlistRef.current = [];
+    setPriceAlerts([]);
+    setLiveData({});
+    liveDataRef.current = {};
+    handleBackToWatchlist();
+  };
+
   const handleSelectSymbol = (symbol) => {
     selectedSymbolRef.current = symbol;
     setSelectedSymbol(symbol);
@@ -301,6 +338,17 @@ function Dashboard() {
         </div>
 
         <div className="dashboard__actions">
+          <form className="user-switcher" onSubmit={handleUserSubmit}>
+            <label htmlFor="demo-user-id">Workspace</label>
+            <input
+              id="demo-user-id"
+              type="text"
+              value={userIdInput}
+              onChange={(event) => setUserIdInput(event.target.value)}
+            />
+            <button type="submit">Use</button>
+          </form>
+
           <button
             className="theme-toggle"
             type="button"

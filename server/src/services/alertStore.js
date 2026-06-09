@@ -12,6 +12,7 @@ const db = new DatabaseSync(DB_PATH);
 db.exec(`
   CREATE TABLE IF NOT EXISTS price_alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL DEFAULT 'demo-user',
     symbol TEXT NOT NULL,
     target REAL NOT NULL,
     status TEXT NOT NULL DEFAULT 'active',
@@ -24,6 +25,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS price_alert_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     alert_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL DEFAULT 'demo-user',
     symbol TEXT NOT NULL,
     target REAL NOT NULL,
     event_type TEXT NOT NULL,
@@ -34,8 +36,27 @@ db.exec(`
   );
 `);
 
+const ensureColumn = (tableName, columnName, definition) => {
+  const columns = db
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all()
+    .map((column) => column.name);
+
+  if (!columns.includes(columnName)) {
+    db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+  }
+};
+
+ensureColumn("price_alerts", "user_id", "TEXT NOT NULL DEFAULT 'demo-user'");
+ensureColumn(
+  "price_alert_history",
+  "user_id",
+  "TEXT NOT NULL DEFAULT 'demo-user'"
+);
+
 const normalizeAlert = (row, history = []) => ({
   id: row.id,
+  user_id: row.user_id,
   symbol: row.symbol,
   target: row.target,
   status: row.status,
@@ -49,6 +70,7 @@ const normalizeAlert = (row, history = []) => ({
 const normalizeHistory = (row) => ({
   id: row.id,
   alert_id: row.alert_id,
+  user_id: row.user_id,
   symbol: row.symbol,
   target: row.target,
   event_type: row.event_type,
@@ -77,31 +99,38 @@ const getAlertById = (alertId) => {
   return normalizeAlert(row, getHistoryForAlert(row.id));
 };
 
-const listAlerts = () => {
+const normalizeUserId = (userId) => {
+  return String(userId || "demo-user").trim() || "demo-user";
+};
+
+const listAlerts = (userId) => {
+  const normalizedUserId = normalizeUserId(userId);
   const rows = db
     .prepare(
       `SELECT *
        FROM price_alerts
+       WHERE user_id = ?
        ORDER BY created_at DESC, id DESC`
     )
-    .all();
+    .all(normalizedUserId);
 
   return rows.map((row) => normalizeAlert(row, getHistoryForAlert(row.id)));
 };
 
-const createAlert = ({ symbol, target }) => {
+const createAlert = ({ userId, symbol, target }) => {
+  const normalizedUserId = normalizeUserId(userId);
   const normalizedSymbol = String(symbol || "").trim().toUpperCase();
   const parsedTarget = Number(target);
 
   const result = db
-    .prepare("INSERT INTO price_alerts (symbol, target) VALUES (?, ?)")
-    .run(normalizedSymbol, parsedTarget);
+    .prepare("INSERT INTO price_alerts (user_id, symbol, target) VALUES (?, ?, ?)")
+    .run(normalizedUserId, normalizedSymbol, parsedTarget);
 
   db.prepare(
     `INSERT INTO price_alert_history
-       (alert_id, symbol, target, event_type, delivery_status)
-     VALUES (?, ?, ?, 'created', 'pending')`
-  ).run(result.lastInsertRowid, normalizedSymbol, parsedTarget);
+       (alert_id, user_id, symbol, target, event_type, delivery_status)
+     VALUES (?, ?, ?, ?, 'created', 'pending')`
+  ).run(result.lastInsertRowid, normalizedUserId, normalizedSymbol, parsedTarget);
 
   return getAlertById(result.lastInsertRowid);
 };
@@ -144,9 +173,9 @@ const triggerCrossedAlerts = ({ symbol, previousPrice, currentPrice }) => {
 
     db.prepare(
       `INSERT INTO price_alert_history
-         (alert_id, symbol, target, event_type, price, delivery_status)
-       VALUES (?, ?, ?, 'triggered', ?, 'pending')`
-    ).run(alert.id, alert.symbol, alert.target, currentPrice);
+         (alert_id, user_id, symbol, target, event_type, price, delivery_status)
+       VALUES (?, ?, ?, ?, 'triggered', ?, 'pending')`
+    ).run(alert.id, alert.user_id, alert.symbol, alert.target, currentPrice);
   });
 
   return triggeredAlerts.map((alert) => getAlertById(alert.id));
@@ -168,9 +197,9 @@ const markAlertsDelivered = (alertIds) => {
 
     db.prepare(
       `INSERT INTO price_alert_history
-         (alert_id, symbol, target, event_type, price, delivery_status)
-       VALUES (?, ?, ?, 'delivered', ?, 'delivered')`
-    ).run(alertId, alert.symbol, alert.target, alert.triggered_price);
+         (alert_id, user_id, symbol, target, event_type, price, delivery_status)
+       VALUES (?, ?, ?, ?, 'delivered', ?, 'delivered')`
+    ).run(alertId, alert.user_id, alert.symbol, alert.target, alert.triggered_price);
   });
 
   return uniqueAlertIds.map(getAlertById).filter(Boolean);

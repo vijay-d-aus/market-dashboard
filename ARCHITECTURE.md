@@ -23,8 +23,8 @@ mock-data.tealvue.in
 Key responsibilities:
 
 - Load symbols from `GET /api/symbols`
-- Persist `watchlist` through `GET /api/watchlist` and `PUT /api/watchlist`
-- Restore the SQLite-backed watchlist on refresh
+- Persist `watchlist` through user-scoped `GET /api/watchlist` and `PUT /api/watchlist`
+- Restore the SQLite-backed watchlist for the active demo user on refresh
 - Save remove and reorder actions through the same backend watchlist endpoint
 - Resubscribe the restored watchlist on socket reconnect
 - Store latest ticks by `SYMBOL`
@@ -62,9 +62,9 @@ It calls through `cacheStore.js` for cacheable symbol-list and historical respon
 
 `cacheStore.js` uses Node's built-in SQLite module to store cache entries in `server/data/market-dashboard.sqlite`. Each cache row stores a key, serialized JSON response, and expiry timestamp.
 
-`watchlistStore.js` uses Node's built-in SQLite module to store watchlist symbols and their positions in `server/data/market-dashboard.sqlite`. Incoming watchlists are normalized to uppercase, deduplicated, and written inside a transaction.
+`watchlistStore.js` uses Node's built-in SQLite module to store watchlist symbols and their positions by demo user in `server/data/market-dashboard.sqlite`. Incoming watchlists are normalized to uppercase, deduplicated, and written inside a transaction.
 
-`alertStore.js` stores price-alert definitions and history in the same SQLite database. Alert rows track active/triggered status, delivery status, target price, triggered price, and timestamps. History rows record created, triggered, and delivered events.
+`alertStore.js` stores price-alert definitions and history by demo user in the same SQLite database. Alert rows track active/triggered status, delivery status, target price, triggered price, and timestamps. History rows record created, triggered, and delivered events.
 
 `tickerClient.js` connects to the remote Socket.IO source. The backend tracks requested symbols per frontend socket, keeps the remote ticker subscribed to the aggregate set of requested symbols, and sends each received `ticker` event only to clients that subscribed to that symbol.
 
@@ -72,7 +72,7 @@ It calls through `cacheStore.js` for cacheable symbol-list and historical respon
 
 Watchlist persistence is backend-owned:
 
-- `watchlist`: `server/data/market-dashboard.sqlite`
+- `watchlist`: `server/data/market-dashboard.sqlite`, scoped by `X-Demo-User`
 
 Historical chart caching is still frontend-local:
 
@@ -94,7 +94,7 @@ The backend also handles upstream ticker reconnects. If the remote ticker connec
 
 ## Price Alerts
 
-Price alerts are backend-backed. `Dashboard.jsx` loads saved alerts from `GET /api/alerts` and creates new alerts through `POST /api/alerts`. The backend checks active alerts as live ticks arrive. When the latest `CLOSE` crosses the target in either direction, the alert is marked as triggered, an event is written to history, and subscribed frontend clients receive a `price_alert` socket event. If at least one client receives the event, the backend marks the alert delivery status as `delivered` and emits `price_alert_updated`.
+Price alerts are backend-backed and scoped by demo user. `Dashboard.jsx` loads saved alerts from `GET /api/alerts` and creates new alerts through `POST /api/alerts`, with the active workspace sent as `X-Demo-User`. The backend checks active alerts as live ticks arrive. When the latest `CLOSE` crosses the target in either direction, the alert is marked as triggered, an event is written to history, and matching subscribed frontend clients receive a `price_alert` socket event. If at least one matching client receives the event, the backend marks the alert delivery status as `delivered` and emits `price_alert_updated`.
 
 ## Tests
 
@@ -104,6 +104,6 @@ Frontend tests use Vitest, jsdom, and Testing Library. They mock the backend API
 
 ## Known Constraints
 
-- Watchlist storage is durable but local to one SQLite database, not scoped per user.
+- Demo-user isolation uses a local header rather than real authentication.
 - Historical date controls are constrained by the mock API's supported range.
 - Port `5050` must be free before starting the backend.
