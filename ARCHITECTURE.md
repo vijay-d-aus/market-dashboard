@@ -2,7 +2,7 @@
 
 ## Overview
 
-The app is split into a React frontend and a Node/Express backend. The frontend owns the user experience, chart rendering, live state, and temporary historical cache. The backend owns authentication, communication with the mock market API, the remote ticker socket, and user-scoped persistence.
+The app is split into a React frontend and a Node/Express backend. The frontend owns the user experience, chart rendering, and live state. The backend owns authentication, communication with the mock market API, the remote ticker socket, user-scoped persistence, and cacheable REST responses.
 
 ```txt
 React client
@@ -36,7 +36,6 @@ Key responsibilities:
 - `Intraday`: uses live chart data passed from `Dashboard`
 - `Historical`: calls `POST /api/historical`
 - Validates user-selected historical start/end dates before calling the backend
-- Caches historical chart points in `localStorage` using symbol/date/limit/offset as the key
 - Provides a per-symbol target price alert input and alert history
 
 `StockChart.jsx` renders the Recharts chart. It plots:
@@ -83,10 +82,6 @@ Watchlist persistence is backend-owned:
 
 - `users` and `auth_tokens`: `server/data/market-dashboard.sqlite`
 - `watchlist`: `server/data/market-dashboard.sqlite`, scoped by authenticated user
-
-Historical chart caching is still frontend-local:
-
-- historical chart cache: `localStorage["historical:<symbol>:<start>:<end>:<limit>:<offset>"]`
 
 Backend caching is intentionally lightweight but explicit:
 

@@ -17,35 +17,6 @@ const toHistoricalChartPoint = (row) => ({
   price: Number(row.CLOSE)
 });
 
-const getHistoricalCacheKey = (symbol, range) => {
-  return [
-    "historical",
-    symbol,
-    range.start_date,
-    range.end_date,
-    range.limit,
-    range.offset
-  ].join(":");
-};
-
-const getCachedHistoricalData = (symbol, range) => {
-  try {
-    const cached = localStorage.getItem(getHistoricalCacheKey(symbol, range));
-    const parsed = cached ? JSON.parse(cached) : [];
-
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
-
-const setCachedHistoricalData = (symbol, range, data) => {
-  localStorage.setItem(
-    getHistoricalCacheKey(symbol, range),
-    JSON.stringify(data)
-  );
-};
-
 const validateHistoricalRange = ({ start_date, end_date }) => {
   if (!start_date || !end_date) {
     return "Choose both start and end dates.";
@@ -97,14 +68,6 @@ function StockDetail({
     let ignore = false;
 
     const loadHistoricalData = async () => {
-      const cachedData = getCachedHistoricalData(symbol, historicalQuery);
-
-      if (cachedData.length > 0) {
-        setHistoricalChartData(cachedData);
-        setHistoricalStatus("success");
-        return;
-      }
-
       setHistoricalStatus("loading");
       setHistoricalError("");
 
@@ -123,7 +86,6 @@ function StockDetail({
         const chartPoints = rows.map(toHistoricalChartPoint);
 
         setHistoricalChartData(chartPoints);
-        setCachedHistoricalData(symbol, historicalQuery, chartPoints);
         setHistoricalStatus("success");
       } catch (error) {
         if (ignore) return;

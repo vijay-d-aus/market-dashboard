@@ -13,7 +13,6 @@ A React + Node.js market dashboard for tracking NSE symbols with live ticks, det
 - User-configurable historical date range with validation
 - Historical data loaded through the backend API
 - Watchlist persistence with backend SQLite
-- Historical chart caching with `localStorage`
 - Backend SQLite TTL caching for symbol list and historical responses
 - Socket reconnect handling with automatic resubscribe
 - Per-client websocket subscriptions so clients only receive requested symbols
@@ -350,7 +349,6 @@ curl -s http://localhost:5050/api/watchlist \
 
 ## Known Issues
 
-- Historical cache is still stored in `localStorage`, so it is browser-specific.
 - The live chart only keeps the latest 50 selected-symbol points in memory.
 - Historical date controls are constrained to the mock API's narrow supported range.
 - Backend cache entries are local SQLite rows with a 5-minute TTL, so they are durable only within that local app database.
@@ -370,4 +368,4 @@ curl -s http://localhost:5050/api/watchlist \
 - The frontend calls only the local backend, not the remote mock API directly.
 - The backend proxies REST requests and bridges remote ticker events to frontend clients.
 - Watchlist persistence, alerts, and backend REST cache entries are stored in local SQLite.
-- Historical chart cache remains frontend-local for quick chart reloads.
+- Historical responses are cached by the backend SQLite cache layer.
