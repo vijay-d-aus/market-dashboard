@@ -49,7 +49,12 @@ vi.mock("../services/socket", () => ({
 }));
 
 vi.mock("../components/StockChart", () => ({
-  default: ({ title }) => <div>{title}</div>
+  default: ({ chartData = [], title }) => (
+    <div>
+      <div>{title}</div>
+      <div>chart points: {chartData.length}</div>
+    </div>
+  )
 }));
 
 const symbolsResponse = {
@@ -205,6 +210,35 @@ describe("Dashboard", () => {
 
     expect(screen.getByText("RELIANCE alert triggered")).toBeInTheDocument();
     expect(screen.getByText("Delivery: pending")).toBeInTheDocument();
+  });
+
+  it("keeps live chart history for unselected symbols", async () => {
+    const user = userEvent.setup();
+    const handlers = {};
+    socket.on.mockImplementation((event, handler) => {
+      handlers[event] = handler;
+    });
+    setupInitialData(["RELIANCE", "TCS"]);
+
+    render(<Dashboard />);
+
+    expect(await screen.findByText("TCS")).toBeInTheDocument();
+
+    act(() => {
+      Array.from({ length: 60 }, (_, index) => index).forEach((index) => {
+        handlers.ticker({
+          SYMBOL: "TCS",
+          TS: `2026-06-11T10:${String(index).padStart(2, "0")}:00.000Z`,
+          CLOSE: 2400 + index,
+          LTP: 2400 + index
+        });
+      });
+    });
+
+    await user.click(screen.getByText("TCS").closest("button"));
+
+    expect(screen.getByText("TCS Live CLOSE Chart")).toBeInTheDocument();
+    expect(screen.getByText("chart points: 60")).toBeInTheDocument();
   });
 
   it("signs in before loading user-owned watchlist data", async () => {

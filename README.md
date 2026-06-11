@@ -16,6 +16,7 @@ A React + Node.js market dashboard for tracking NSE symbols with live ticks, det
 - Backend SQLite TTL caching for symbol list and historical responses
 - Socket reconnect handling with automatic resubscribe
 - Per-client websocket subscriptions so clients only receive requested symbols
+- Per-symbol live chart history for recently streamed ticks
 - Light/dark theme toggle
 - 5-point moving average overlay on charts
 - Backend-backed price alerts with history, delivery status, and in-app notifications
@@ -268,7 +269,7 @@ During mock API exploration I found a few differences between the documentation 
 
 - The historical API examples mention dates outside the range that the API accepts. The actual usable trading-day range is `2026-05-04` through `2026-05-08`, so the frontend constrains the date controls to that range.
 - The WebSocket documentation mentions a local-style port, but the real remote Socket.IO source is `https://mock-data.tealvue.in`. The backend connects to that remote source and exposes a local Socket.IO server for the frontend.
-- The ticker subscription can send a burst of existing or simulated ticks before ongoing updates. The frontend treats incoming ticks as chart points for the selected symbol and caps the live chart to the latest 50 points.
+- The ticker subscription can send a burst of existing or simulated ticks before ongoing updates. The frontend stores a bounded per-symbol live chart history so a detail chart can show recent ticks even if the symbol was not already open.
 - The docs show tick price as `LTP`, while the tested mock payloads include `CLOSE`. The frontend uses `CLOSE` as requested and falls back to `LTP` if a payload only has the documented field.
 - Empty POST bodies can cause destructuring errors if not guarded. The backend controllers use `req.body || {}` and return validation messages such as `Symbol is required`.
 - Pagination values can arrive as strings from clients, so the backend normalizes and validates `limit` and `offset` before proxying.
@@ -349,7 +350,6 @@ curl -s http://localhost:5050/api/watchlist \
 
 ## Known Issues
 
-- The live chart only keeps the latest 50 selected-symbol points in memory.
 - Historical date controls are constrained to the mock API's narrow supported range.
 - Backend cache entries are local SQLite rows with a 5-minute TTL, so they are durable only within that local app database.
 - Port `5050` must be free before starting the backend.

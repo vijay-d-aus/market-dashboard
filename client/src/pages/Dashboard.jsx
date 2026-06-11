@@ -23,6 +23,7 @@ const toChartPoint = (tick) => ({
   time: tick.TS ? tick.TS.slice(11, 19) : new Date().toLocaleTimeString(),
   price: Number(tick.CLOSE ?? tick.LTP)
 });
+const LIVE_CHART_POINT_LIMIT = 500;
 
 const getStoredTheme = () => {
   return localStorage.getItem("theme") === "dark" ? "dark" : "light";
@@ -58,6 +59,7 @@ function Dashboard() {
   const selectedSymbolRef = useRef(null);
   const watchlistRef = useRef(watchlist);
   const liveDataRef = useRef(liveData);
+  const chartHistoryRef = useRef({});
 
   useEffect(() => {
     const validateSession = async () => {
@@ -165,18 +167,21 @@ function Dashboard() {
         return next;
       });
 
-      setChartData((prev) => {
-        if (!selectedSymbolRef.current || tick.SYMBOL !== selectedSymbolRef.current) {
-          return prev;
-        }
+      const chartPoint = toChartPoint(tick);
+      const previousHistory = chartHistoryRef.current[tick.SYMBOL] || [];
+      const nextSymbolHistory = [
+        ...previousHistory,
+        chartPoint
+      ].slice(-LIVE_CHART_POINT_LIMIT);
 
-        const updated = [
-          ...prev,
-          toChartPoint(tick)
-        ];
+      chartHistoryRef.current = {
+        ...chartHistoryRef.current,
+        [tick.SYMBOL]: nextSymbolHistory
+      };
 
-        return updated.slice(-50);
-      });
+      if (selectedSymbolRef.current === tick.SYMBOL) {
+        setChartData(nextSymbolHistory);
+      }
     });
 
     socket.on("price_alert", (alert) => {
@@ -281,6 +286,7 @@ function Dashboard() {
       liveDataRef.current = next;
       return next;
     });
+    delete chartHistoryRef.current[symbol];
 
     if (socket.connected) {
       socket.emit("unsubscribe", [symbol]);
@@ -383,13 +389,17 @@ function Dashboard() {
     setPriceAlerts([]);
     setLiveData({});
     liveDataRef.current = {};
+    chartHistoryRef.current = {};
     handleBackToWatchlist();
   };
 
   const handleSelectSymbol = (symbol) => {
     selectedSymbolRef.current = symbol;
     setSelectedSymbol(symbol);
-    setChartData(liveData[symbol] ? [toChartPoint(liveData[symbol])] : []);
+    setChartData(
+      chartHistoryRef.current[symbol] ||
+        (liveData[symbol] ? [toChartPoint(liveData[symbol])] : [])
+    );
   };
 
   const handleBackToWatchlist = () => {

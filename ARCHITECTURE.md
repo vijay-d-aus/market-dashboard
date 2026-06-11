@@ -29,7 +29,7 @@ Key responsibilities:
 - Save remove and reorder actions through the same backend watchlist endpoint
 - Resubscribe the restored watchlist on socket reconnect
 - Store latest ticks by `SYMBOL`
-- Build intraday chart points from live tick `CLOSE`, falling back to `LTP` if needed
+- Store bounded per-symbol intraday chart history from live tick `CLOSE`, falling back to `LTP` if needed
 
 `StockDetail.jsx` owns the chart mode:
 
