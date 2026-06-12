@@ -23,7 +23,7 @@ const toChartPoint = (tick) => ({
   time: tick.TS ? tick.TS.slice(11, 19) : new Date().toLocaleTimeString(),
   price: Number(tick.CLOSE ?? tick.LTP)
 });
-const LIVE_CHART_POINT_LIMIT = 500;
+const LIVE_CHART_POINT_LIMIT = 750;
 
 const getStoredTheme = () => {
   return localStorage.getItem("theme") === "dark" ? "dark" : "light";
